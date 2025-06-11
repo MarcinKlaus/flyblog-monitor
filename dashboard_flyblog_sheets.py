@@ -58,6 +58,17 @@ st.markdown("""
     table td:nth-child(3), table td:nth-child(5) {
         text-align: center !important;
     }
+    
+    /* Bardziej specyficzne centrowanie dla st.table */
+    .stTable td:nth-child(3), .stTable td:nth-child(5) {
+        text-align: center !important;
+    }
+    
+    /* Jeszcze jedna próba dla różnych struktur */
+    div[data-testid="stTable"] td:nth-child(3),
+    div[data-testid="stTable"] td:nth-child(5) {
+        text-align: center !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -328,6 +339,10 @@ if df is not None and not df.empty:
                         # Oblicz różnicę
                         diff = now - post_date
                         days_diff = diff.days
+                        
+                        # Obsłuż ujemne wartości (gdy data jest w przyszłości)
+                        if days_diff < 0:
+                            days_diff = abs(days_diff)
                         
                         # Formatuj wynik
                         time_str = post_date.strftime('%H:%M')
