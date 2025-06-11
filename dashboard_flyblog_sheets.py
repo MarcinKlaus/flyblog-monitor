@@ -321,13 +321,13 @@ if df is not None and not df.empty:
             uczestnik = f"{nick} • {email}"
             
             table_data.append({
-                'St': row['Priority'],
+                'Status': row['Priority'],
                 'Uczestnik': uczestnik,
-                'W': ile_wpisow,
-                'Ost': ostatni[:10],  # Skrócone
-                'M': milczenie,
-                'B': bez_odp,
-                'Status': status[:25]  # Jeszcze bardziej skrócone
+                'Liczba wpisów': ile_wpisow,
+                'Ostatni post': ostatni,
+                'Ile milczy': milczenie,
+                'Bez odp.': bez_odp,
+                'Podsumowanie': status[:30]  # Skrócone do 30 znaków
             })
         return pd.DataFrame(table_data)
     
