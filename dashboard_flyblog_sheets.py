@@ -50,8 +50,11 @@ def parse_silence_hours(silence_str):
 def get_priority_emoji(row):
     """Zwraca emoji priorytetu na podstawie statusu"""
     try:
-        # Używamy nowej kolumny 'Podsumowanie' zamiast 'Status'
-        status = str(row.get('Podsumowanie', '')).upper()
+        # Sprawdzamy obie możliwe nazwy kolumn
+        if 'Podsumowanie' in row:
+            status = str(row.get('Podsumowanie', '')).upper()
+        else:
+            status = str(row.get('Status', '')).upper()
         
         if 'NIE ZALOGOWAŁ' in status or 'NIGDY NIE PISAŁ' in status or 'TRAGEDIA' in status:
             return "🔴🔴🔴"
@@ -83,8 +86,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Tytuł z "by Insight Shot"
-st.title("🔍 FlyBlog Monitor by Insight Shot")
+# Tytuł z "by Insight Shot" i przycisk odświeżania w prawym górnym rogu
+col_title, col_refresh = st.columns([4, 1])
+with col_title:
+    st.title("🔍 FlyBlog Monitor by Insight Shot")
+with col_refresh:
+    if st.button("🔄 Odśwież dane"):
+        st.cache_data.clear()
+        st.rerun()
 
 # Wczytaj dane
 df = load_data_from_sheets()
@@ -184,6 +193,11 @@ if df is not None and not df.empty:
     st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {len(df)})")
     
     # DWIE KOLUMNY UCZESTNIKÓW
+    st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {len(df)})")
+    
+    # Legenda co oznaczają skróty
+    st.caption("W = Ile Wpisów | M = Ile Milczy (h) | B = Bez Odpowiedzi Moderatora")
+    
     # Podziel dane na dwie części
     half = len(filtered_df) // 2
     left_df = filtered_df.iloc[:half]
@@ -192,15 +206,40 @@ if df is not None and not df.empty:
     # Utwórz dwie kolumny
     col_left, col_right = st.columns(2)
     
-    # Funkcja do formatowania linii - UŻYWAMY NOWYCH NAZW
+    # Funkcja do formatowania linii - UŻYWAMY STARYCH NAZW BO TAK SĄ W SHEETS
     def format_line(row):
         emoji = row['Priority']
-        nick = str(row.get('Nick', 'brak'))[:12].ljust(12)  # Skrócone do 12 znaków
-        status = str(row.get('Podsumowanie', 'Brak'))[:25]  # NOWA NAZWA
-        ile_wpisow = f"W:{row.get('IleWpisów', 0)}"  # NOWA NAZWA
-        milczenie = str(row.get('IleMilczy', '?'))  # NOWA NAZWA
+        nick = str(row.get('Nick', 'brak'))[:12].ljust(12)
         
-        parts = [emoji, nick, status, ile_wpisow, milczenie]
+        # Sprawdzamy które nazwy kolumn istnieją (stare vs nowe)
+        if 'Podsumowanie' in row:
+            status = str(row.get('Podsumowanie', 'Brak'))[:25]
+        else:
+            status = str(row.get('Status', 'Brak'))[:25]
+            
+        if 'IleWpisów' in row:
+            ile_wpisow = row.get('IleWpisów', 0)
+        else:
+            ile_wpisow = row.get('Zadania', 0)
+            
+        if 'IleMilczy' in row:
+            milczenie = str(row.get('IleMilczy', '?'))
+        else:
+            milczenie = str(row.get('Milczenie', '?'))
+            
+        if 'BezOdpMod' in row:
+            bez_odp = row.get('BezOdpMod', 0)
+        else:
+            bez_odp = row.get('Bez odp.', 0)
+        
+        # Formatowanie z wyjaśnieniem co to jest
+        parts = [
+            emoji,
+            nick,
+            f"W:{ile_wpisow}",  # W = ile Wpisów
+            f"M:{milczenie}",   # M = ile Milczy
+            f"B:{bez_odp}"      # B = Bez odpowiedzi moderatora
+        ]
         return " | ".join(parts)
     
     # Lewa kolumna
@@ -244,15 +283,9 @@ if df is not None and not df.empty:
             hide_index=True
         )
     
-    # Przyciski na dole
+    # Przyciski na dole - USUNIĘTE BO JUŻ JEST NA GÓRZE
     st.markdown("---")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🔄 Odśwież dane"):
-            st.cache_data.clear()
-            st.rerun()
-    with col2:
-        st.caption("Dane odświeżają się co 60 sekund")
+    st.caption("Dane odświeżają się automatycznie co 60 sekund")
     
 else:
     st.error("❌ Nie można załadować danych z Google Sheets")
