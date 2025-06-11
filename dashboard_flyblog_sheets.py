@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-FlyBlog Monitor - Dashboard v3.2 - dostosowany do nowych kolumn
+FlyBlog Monitor - Dashboard v3.3 - POPRAWIONY PODZIAŁ WEDŁUG PŁCI
 - Używa nowych nazw kolumn: IleWpisów, KiedyOstatni, IleMilczy, BezOdpMod, Podsumowanie
-- Dwie kolumny uczestników
+- Podział uczestników według płci moderatorów
 - "by Insight Shot" w tytule
 - Link zamiast "PEŁNY"
 """
@@ -250,19 +250,18 @@ if df is not None and not df.empty:
     filtered_df['priority_order'] = filtered_df['Priority'].map(priority_order)
     filtered_df = filtered_df.sort_values('priority_order').drop('priority_order', axis=1)
     
-    # TABELA UCZESTNIKÓW - PODZIAŁ NA PŁEĆ
+    # TABELA UCZESTNIKÓW - PODZIAŁ WEDŁUG PŁCI
     st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {len(df)})")
     
     # Podziel dane według płci
-    female_df = filtered_df[filtered_df['Płeć'] == 'K'].copy() if 'Płeć' in filtered_df.columns else pd.DataFrame()
-    # Mężczyźni + nieznana płeć
-    male_and_unknown_df = filtered_df[filtered_df['Płeć'].isin(['M', 'Nieznana'])].copy() if 'Płeć' in filtered_df.columns else filtered_df.copy()
-    
-    # Jeśli nie ma kolumny płci, użyj starego podziału
-    if 'Płeć' not in filtered_df.columns:
+    if 'Płeć' in filtered_df.columns:
+        left_df = filtered_df[filtered_df['Płeć'] == 'K'].copy()  # Kobiety
+        right_df = filtered_df[filtered_df['Płeć'].isin(['M', 'Nieznana'])].copy()  # Mężczyźni + nieznana
+    else:
+        # Jeśli nie ma kolumny płci, użyj starego podziału
         half = len(filtered_df) // 2
-        female_df = filtered_df.iloc[:half]
-        male_and_unknown_df = filtered_df.iloc[half:]
+        left_df = filtered_df.iloc[:half]
+        right_df = filtered_df.iloc[half:]
     
     # Przygotuj dane do tabel
     def prepare_table_data(df_part):
@@ -371,8 +370,9 @@ if df is not None and not df.empty:
     
     with col1:
         st.markdown("### 👩 Karolina Moderuje")
-        if not female_df.empty:
-            table_left = prepare_table_data(female_df)
+        st.markdown(f"*Uczestniczki: {len(left_df)}*")
+        if not left_df.empty:
+            table_left = prepare_table_data(left_df)
             st.dataframe(
                 table_left,
                 use_container_width=True,
@@ -385,8 +385,9 @@ if df is not None and not df.empty:
     
     with col2:
         st.markdown("### 👨 Marcin Moderuje")
-        if not male_and_unknown_df.empty:
-            table_right = prepare_table_data(male_and_unknown_df)
+        st.markdown(f"*Uczestnicy: {len(right_df)}*")
+        if not right_df.empty:
+            table_right = prepare_table_data(right_df)
             st.dataframe(
                 table_right,
                 use_container_width=True,
