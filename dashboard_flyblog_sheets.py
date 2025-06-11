@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-FlyBlog Monitor - Dashboard v3.3 - POPRAWIONY PODZIAŁ WEDŁUG PŁCI
-- Używa nowych nazw kolumn: IleWpisów, KiedyOstatni, IleMilczy, BezOdpMod, Podsumowanie
+FlyBlog Monitor - Dashboard v3.4 - FINAL
 - Podział uczestników według płci moderatorów
-- "by Insight Shot" w tytule
-- Link zamiast "PEŁNY"
+- Usunięty duplikat statystyk płci
+- Osoby z "maspex" w emailu są całkowicie ukryte
 """
 
 import streamlit as st
@@ -65,6 +64,13 @@ def load_data_from_sheets():
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=csv"
         df = pd.read_csv(url, header=2)
         df.columns = df.columns.str.strip()
+        
+        # FILTRUJ OSOBY Z MASPEX W EMAILU
+        if 'Email' in df.columns:
+            df = df[~df['Email'].str.contains('maspex', case=False, na=False)]
+        if 'Identyfikator' in df.columns:
+            df = df[~df['Identyfikator'].str.contains('maspex', case=False, na=False)]
+            
         return df
     except Exception as e:
         st.error(f"Błąd wczytywania danych: {str(e)}")
@@ -174,7 +180,7 @@ if df is not None and not df.empty:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
     
-    # Statystyki
+    # Statystyki główne
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -189,7 +195,7 @@ if df is not None and not df.empty:
         ok = len(df[df['Priority'] == '🟢'])
         st.metric("🟢 OK", ok)
     
-    # Dodajmy statystyki płci
+    # Statystyki płci (TYLKO RAZ!)
     if 'Płeć' in df.columns:
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -202,21 +208,6 @@ if df is not None and not df.empty:
             st.metric("", "")  # Pusta kolumna dla wyrównania
     
     st.markdown("---")
-    
-    # Statystyki płci
-    if 'Płeć' in df.columns:
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            female_count = len(df[df['Płeć'] == 'K'])
-            st.metric("👩 Kobiety", female_count)
-        with col2:
-            male_count = len(df[df['Płeć'] == 'M'])
-            st.metric("👨 Mężczyźni", male_count)
-        with col3:
-            unknown_count = len(df[df['Płeć'] == 'Nieznana'])
-            st.metric("❓ Nieznana płeć", unknown_count)
-        with col4:
-            st.metric("", "")  # Pusta dla wyrównania
     
     # Filtry w sidebarze
     with st.sidebar:
@@ -454,4 +445,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("ReflexLab v3.3 by Insight Shot")
+st.caption("ReflexLab v3.4 by Insight Shot")
