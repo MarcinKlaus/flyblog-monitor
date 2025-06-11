@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-ReflexLab™ Monitor - Dashboard v4.0
+ReflexLab™ - Dashboard v4.0
 - Czcionka Manrope
 - Guzik odświeżania w nagłówku
-- ReflexLab™ zamiast FlyBlog Monitor
+- ReflexLab™ z ikoną medytacji
 """
 
 import streamlit as st
@@ -13,8 +13,8 @@ import re
 
 # Konfiguracja strony
 st.set_page_config(
-    page_title="ReflexLab™ Monitor",
-    page_icon="🔬",
+    page_title="ReflexLab™",
+    page_icon="🧘",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -125,10 +125,10 @@ st.markdown("""
 col_title, col_refresh = st.columns([6, 1])
 
 with col_title:
-    st.markdown("# 🔬 ReflexLab™ Monitor by Insight Shot")
+    st.markdown("# 🧘 ReflexLab™ by Insight Shot")
 
 with col_refresh:
-    if st.button("🔄 Odśwież", key="refresh_top", help="Kliknij aby odświeżyć dane"):
+    if st.button("🔄 Odśwież dane", key="refresh_top", help="Kliknij aby odświeżyć dane"):
         st.cache_data.clear()
         st.rerun()
 
@@ -156,7 +156,7 @@ if df is not None and not df.empty:
         check_time = time_match.group(1) if time_match else "Nieznany czas"
         
         # Nagłówek z linkiem
-        parts = [f"⏰ {check_time}"]
+        parts = [f"⏳ {check_time}"]
         if day_info:
             parts.append(day_info)
         if tasks_info:
@@ -166,7 +166,7 @@ if df is not None and not df.empty:
         st.subheader(header_line)
         
     except:
-        st.subheader("⏰ Dane z Google Sheets")
+        st.subheader("⏳ Dane z Google Sheets")
     
     # Przygotuj dane
     df['Priority'] = df.apply(get_priority_emoji, axis=1)
@@ -291,4 +291,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("ReflexLab™ Monitor v4.0 by Insight Shot")
+st.caption("ReflexLab™ v4.0 by Insight Shot")
