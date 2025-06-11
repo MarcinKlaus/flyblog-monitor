@@ -192,31 +192,13 @@ if df is not None and not df.empty:
     # Nagłówek listy
     st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {len(df)})")
     
-    # DWIE KOLUMNY UCZESTNIKÓW
+    # TABELA UCZESTNIKÓW - CZYTELNA Z NAGŁÓWKAMI
     st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {len(df)})")
     
-    # Legenda co oznaczają skróty
-    st.caption("W = Ile Wpisów | M = Ile Milczy (h) | B = Bez Odpowiedzi Moderatora")
-    
-    # Podziel dane na dwie części
-    half = len(filtered_df) // 2
-    left_df = filtered_df.iloc[:half]
-    right_df = filtered_df.iloc[half:]
-    
-    # Utwórz dwie kolumny
-    col_left, col_right = st.columns(2)
-    
-    # Funkcja do formatowania linii - UŻYWAMY STARYCH NAZW BO TAK SĄ W SHEETS
-    def format_line(row):
-        emoji = row['Priority']
-        nick = str(row.get('Nick', 'brak'))[:12].ljust(12)
-        
-        # Sprawdzamy które nazwy kolumn istnieją (stare vs nowe)
-        if 'Podsumowanie' in row:
-            status = str(row.get('Podsumowanie', 'Brak'))[:25]
-        else:
-            status = str(row.get('Status', 'Brak'))[:25]
-            
+    # Przygotuj dane do tabeli
+    table_data = []
+    for _, row in filtered_df.iterrows():
+        # Sprawdzamy które nazwy kolumn istnieją
         if 'IleWpisów' in row:
             ile_wpisow = row.get('IleWpisów', 0)
         else:
@@ -231,33 +213,72 @@ if df is not None and not df.empty:
             bez_odp = row.get('BezOdpMod', 0)
         else:
             bez_odp = row.get('Bez odp.', 0)
+            
+        if 'KiedyOstatni' in row:
+            ostatni = str(row.get('KiedyOstatni', '-'))
+        else:
+            ostatni = str(row.get('Ostatni post', '-'))
+            
+        if 'Podsumowanie' in row:
+            status = str(row.get('Podsumowanie', '-'))
+        else:
+            status = str(row.get('Status', '-'))
         
-        # Formatowanie z wyjaśnieniem co to jest
-        parts = [
-            emoji,
-            nick,
-            f"W:{ile_wpisow}",  # W = ile Wpisów
-            f"M:{milczenie}",   # M = ile Milczy
-            f"B:{bez_odp}"      # B = Bez odpowiedzi moderatora
-        ]
-        return " | ".join(parts)
+        table_data.append({
+            'Status': row['Priority'],
+            'Nick': row.get('Nick', ''),
+            'Wpisów': ile_wpisow,
+            'Ostatni': ostatni,
+            'Milczy': milczenie,
+            'Bez odp.': bez_odp,
+            'Podsumowanie': status[:40]  # Skrócone do 40 znaków
+        })
     
-    # Lewa kolumna
-    with col_left:
-        st.markdown("```")
-        for _, row in left_df.iterrows():
-            st.text(format_line(row))
-        st.markdown("```")
+    # Wyświetl jako tabelę
+    table_df = pd.DataFrame(table_data)
     
-    # Prawa kolumna
-    with col_right:
-        st.markdown("```")
-        for _, row in right_df.iterrows():
-            st.text(format_line(row))
-        # Jeśli nieparzysta liczba, dodaj pustą linię
-        if len(right_df) < len(left_df):
-            st.text("")
-        st.markdown("```")
+    # Stylizacja tabeli
+    st.dataframe(
+        table_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Status": st.column_config.TextColumn(
+                "📊",
+                width="small",
+                help="Status uczestnika"
+            ),
+            "Nick": st.column_config.TextColumn(
+                "Uczestnik",
+                width="medium"
+            ),
+            "Wpisów": st.column_config.NumberColumn(
+                "Wpisów",
+                help="Liczba wpisów uczestnika",
+                format="%d"
+            ),
+            "Ostatni": st.column_config.TextColumn(
+                "Ostatni wpis",
+                width="medium",
+                help="Data ostatniego wpisu"
+            ),
+            "Milczy": st.column_config.TextColumn(
+                "Milczy",
+                help="Ile godzin od ostatniego wpisu",
+                width="small"
+            ),
+            "Bez odp.": st.column_config.NumberColumn(
+                "Bez odp.",
+                help="Liczba wpisów bez odpowiedzi moderatora",
+                format="%d",
+                width="small"
+            ),
+            "Podsumowanie": st.column_config.TextColumn(
+                "Status",
+                help="Podsumowanie statusu uczestnika"
+            )
+        }
+    )
     
     # Top 5 najpilniejszych
     critical_df = filtered_df[filtered_df['Priority'].isin(['🔴🔴🔴', '🔴🔴'])]
