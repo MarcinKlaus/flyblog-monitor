@@ -65,11 +65,26 @@ def load_data_from_sheets():
         df = pd.read_csv(url, header=2)
         df.columns = df.columns.str.strip()
         
+        # Debug - wypisz nazwy kolumn
+        print(f"Kolumny w DataFrame: {list(df.columns)}")
+        
         # FILTRUJ OSOBY Z MASPEX W EMAILU
         if 'Email' in df.columns:
-            df = df[~df['Email'].str.contains('maspex', case=False, na=False)]
-        if 'Identyfikator' in df.columns:
-            df = df[~df['Identyfikator'].str.contains('maspex', case=False, na=False)]
+            # Debug - pokaż przykładowe emaile
+            print(f"Przykładowe emaile: {df['Email'].head(10).tolist()}")
+            
+            # Sprawdź ile jest maspex PRZED filtrowaniem
+            maspex_mask = df['Email'].astype(str).str.lower().str.contains('maspex', na=False)
+            maspex_count = maspex_mask.sum()
+            print(f"Znaleziono {maspex_count} osób z maspex w emailu")
+            
+            if maspex_count > 0:
+                print(f"Emaile maspex do usunięcia: {df[maspex_mask]['Email'].tolist()}")
+            
+            # Filtruj - konwertuj na string i lowercase dla pewności
+            df = df[~df['Email'].astype(str).str.lower().str.contains('maspex', na=False)]
+            
+            print(f"Pozostało {len(df)} wierszy po filtrowaniu")
             
         return df
     except Exception as e:
