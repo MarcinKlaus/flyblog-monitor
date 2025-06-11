@@ -376,13 +376,7 @@ if df is not None and not df.empty:
     st.markdown(f"*Uczestniczki: {len(left_df)}*")
     if not left_df.empty:
         table_left = prepare_table_data(left_df)
-        st.dataframe(
-            table_left,
-            use_container_width=True,
-            hide_index=True,
-            column_config=column_config
-            # Usunięty parametr height - tabela pokaże wszystkie wiersze
-        )
+        st.table(table_left)  # Zmiana z st.dataframe na st.table
     else:
         st.info("Brak uczestniczek w tej grupie")
     
@@ -390,17 +384,11 @@ if df is not None and not df.empty:
     st.markdown("---")
     
     # DRUGA TABELA - Marcin
-    st.markdown("### 👨 Marcin Moderuje")
+    st.markdown("### 👨 Marcin Moderuje")  
     st.markdown(f"*Uczestnicy: {len(right_df)}*")
     if not right_df.empty:
         table_right = prepare_table_data(right_df)
-        st.dataframe(
-            table_right,
-            use_container_width=True,
-            hide_index=True,
-            column_config=column_config
-            # Usunięty parametr height - tabela pokaże wszystkie wiersze
-        )
+        st.table(table_right)  # Zmiana z st.dataframe na st.table
     else:
         st.info("Brak uczestników w tej grupie")
     
