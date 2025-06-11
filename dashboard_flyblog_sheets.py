@@ -14,7 +14,7 @@ import re
 
 # Konfiguracja strony
 st.set_page_config(
-    page_title="FlyBlog Monitor",
+    page_title="ReflexLab Monitor",
     page_icon="🔍",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -22,6 +22,40 @@ st.set_page_config(
 
 # ID arkusza Google Sheets
 GOOGLE_SHEETS_ID = "1uW4Hy9O4R5if0pe9TIkjGO7i-gZBIBklbOHhqdS0GJg"
+
+# CSS dla Manrope i lepszego wyglądu
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&display=swap');
+    
+    * {
+        font-family: 'Manrope', sans-serif !important;
+    }
+    
+    .stApp {
+        max-width: 100%;
+        font-family: 'Manrope', sans-serif !important;
+    }
+    
+    .block-container {
+        padding-top: 2rem;
+    }
+    
+    div[data-testid="stHorizontalBlock"] > div {
+        padding: 0 5px;
+    }
+    
+    /* Ukryj przewijanie w tabelach */
+    [data-testid="stDataFrame"] > div {
+        max-height: none !important;
+    }
+    
+    /* Manrope dla wszystkich elementów */
+    .stMarkdown, .stText, h1, h2, h3, p, span, div {
+        font-family: 'Manrope', sans-serif !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # Funkcja do wczytywania danych z Google Sheets
 @st.cache_data(ttl=60)
@@ -89,7 +123,7 @@ st.markdown("""
 # Tytuł z "by Insight Shot" i przycisk odświeżania w prawym górnym rogu
 col_title, col_refresh = st.columns([4, 1])
 with col_title:
-    st.title("🔍 FlyBlog Monitor by Insight Shot")
+    st.title("🔍 ReflexLab by Insight Shot")
 with col_refresh:
     if st.button("🔄 Odśwież dane"):
         st.cache_data.clear()
@@ -192,93 +226,122 @@ if df is not None and not df.empty:
     # Nagłówek listy
     st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {len(df)})")
     
-    # TABELA UCZESTNIKÓW - CZYTELNA Z NAGŁÓWKAMI
+    # TABELA UCZESTNIKÓW W DWÓCH KOLUMNACH
     st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {len(df)})")
     
-    # Przygotuj dane do tabeli
-    table_data = []
-    for _, row in filtered_df.iterrows():
-        # Sprawdzamy które nazwy kolumn istnieją
-        if 'IleWpisów' in row:
-            ile_wpisow = row.get('IleWpisów', 0)
-        else:
-            ile_wpisow = row.get('Zadania', 0)
-            
-        if 'IleMilczy' in row:
-            milczenie = str(row.get('IleMilczy', '?'))
-        else:
-            milczenie = str(row.get('Milczenie', '?'))
-            
-        if 'BezOdpMod' in row:
-            bez_odp = row.get('BezOdpMod', 0)
-        else:
-            bez_odp = row.get('Bez odp.', 0)
-            
-        if 'KiedyOstatni' in row:
-            ostatni = str(row.get('KiedyOstatni', '-'))
-        else:
-            ostatni = str(row.get('Ostatni post', '-'))
-            
-        if 'Podsumowanie' in row:
-            status = str(row.get('Podsumowanie', '-'))
-        else:
-            status = str(row.get('Status', '-'))
-        
-        table_data.append({
-            'Status': row['Priority'],
-            'Nick': row.get('Nick', ''),
-            'Wpisów': ile_wpisow,
-            'Ostatni': ostatni,
-            'Milczy': milczenie,
-            'Bez odp.': bez_odp,
-            'Podsumowanie': status[:40]  # Skrócone do 40 znaków
-        })
+    # Podziel dane na dwie części
+    half = len(filtered_df) // 2
+    left_df = filtered_df.iloc[:half]
+    right_df = filtered_df.iloc[half:]
     
-    # Wyświetl jako tabelę
-    table_df = pd.DataFrame(table_data)
+    # Przygotuj dane do tabel
+    def prepare_table_data(df_part):
+        table_data = []
+        for _, row in df_part.iterrows():
+            # Sprawdzamy które nazwy kolumn istnieją
+            if 'IleWpisów' in row:
+                ile_wpisow = row.get('IleWpisów', 0)
+            else:
+                ile_wpisow = row.get('Zadania', 0)
+                
+            if 'IleMilczy' in row:
+                milczenie = str(row.get('IleMilczy', '?'))
+            else:
+                milczenie = str(row.get('Milczenie', '?'))
+                
+            if 'BezOdpMod' in row:
+                bez_odp = row.get('BezOdpMod', 0)
+            else:
+                bez_odp = row.get('Bez odp.', 0)
+                
+            if 'KiedyOstatni' in row:
+                ostatni = str(row.get('KiedyOstatni', '-'))
+            else:
+                ostatni = str(row.get('Ostatni post', '-'))
+                
+            if 'Podsumowanie' in row:
+                status = str(row.get('Podsumowanie', '-'))
+            else:
+                status = str(row.get('Status', '-'))
+            
+            # Dodaj email
+            email = str(row.get('Email', row.get('Identyfikator', '')))
+            nick_with_email = f"{row.get('Nick', '')} ({email[:20]}...)" if len(email) > 20 else f"{row.get('Nick', '')} ({email})"
+            
+            table_data.append({
+                'St': row['Priority'],
+                'Uczestnik': nick_with_email,
+                'W': ile_wpisow,
+                'Ost': ostatni[:10],  # Skrócone
+                'M': milczenie,
+                'B': bez_odp,
+                'Status': status[:30]  # Skrócone
+            })
+        return pd.DataFrame(table_data)
     
-    # Stylizacja tabeli
-    st.dataframe(
-        table_df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Status": st.column_config.TextColumn(
-                "📊",
-                width="small",
-                help="Status uczestnika"
-            ),
-            "Nick": st.column_config.TextColumn(
-                "Uczestnik",
-                width="medium"
-            ),
-            "Wpisów": st.column_config.NumberColumn(
-                "Wpisów",
-                help="Liczba wpisów uczestnika",
-                format="%d"
-            ),
-            "Ostatni": st.column_config.TextColumn(
-                "Ostatni wpis",
-                width="medium",
-                help="Data ostatniego wpisu"
-            ),
-            "Milczy": st.column_config.TextColumn(
-                "Milczy",
-                help="Ile godzin od ostatniego wpisu",
-                width="small"
-            ),
-            "Bez odp.": st.column_config.NumberColumn(
-                "Bez odp.",
-                help="Liczba wpisów bez odpowiedzi moderatora",
-                format="%d",
-                width="small"
-            ),
-            "Podsumowanie": st.column_config.TextColumn(
-                "Status",
-                help="Podsumowanie statusu uczestnika"
+    # Dwie kolumny z tabelami
+    col1, col2 = st.columns(2)
+    
+    # Konfiguracja kolumn dla obu tabel
+    column_config = {
+        "St": st.column_config.TextColumn(
+            "📊",
+            width="small",
+            help="Status priorytetu"
+        ),
+        "Uczestnik": st.column_config.TextColumn(
+            "Uczestnik (email)",
+            width="large"
+        ),
+        "W": st.column_config.NumberColumn(
+            "Wpisów",
+            help="Liczba wpisów",
+            format="%d",
+            width="small"
+        ),
+        "Ost": st.column_config.TextColumn(
+            "Ostatni",
+            help="Data ostatniego wpisu",
+            width="small"
+        ),
+        "M": st.column_config.TextColumn(
+            "Milczy",
+            help="Godziny milczenia",
+            width="small"
+        ),
+        "B": st.column_config.NumberColumn(
+            "Bez",
+            help="Bez odpowiedzi moderatora",
+            format="%d",
+            width="small"
+        ),
+        "Status": st.column_config.TextColumn(
+            "Podsumowanie",
+            width="medium"
+        )
+    }
+    
+    with col1:
+        if not left_df.empty:
+            table_left = prepare_table_data(left_df)
+            st.dataframe(
+                table_left,
+                use_container_width=True,
+                hide_index=True,
+                column_config=column_config,
+                height=min(len(table_left) * 35 + 50, 600)  # Dynamiczna wysokość
             )
-        }
-    )
+    
+    with col2:
+        if not right_df.empty:
+            table_right = prepare_table_data(right_df)
+            st.dataframe(
+                table_right,
+                use_container_width=True,
+                hide_index=True,
+                column_config=column_config,
+                height=min(len(table_right) * 35 + 50, 600)  # Dynamiczna wysokość
+            )
     
     # Top 5 najpilniejszych
     critical_df = filtered_df[filtered_df['Priority'].isin(['🔴🔴🔴', '🔴🔴'])]
@@ -287,11 +350,26 @@ if df is not None and not df.empty:
         st.subheader(f"🚨 Top 5 najpilniejszych:")
         st.markdown("```")
         for _, case in critical_df.head(5).iterrows():
-            nick = str(case.get('Nick', 'brak'))[:15].ljust(15)
-            email = str(case.get('Email', ''))[:30]  # Zmiana z 'Identyfikator' na 'Email'
-            status = str(case.get('Podsumowanie', ''))  # NOWA NAZWA
-            st.text(f"❗ {nick} ({email}) - {status}")
-        st.markdown("```")
+        else:
+            status_text = ""
+        
+        table_data.append({
+            'Nick': str(case.get('Nick', 'brak'))[:15],
+            'Email': str(case.get('Email', case.get('Identyfikator', '')))[:30],
+            'Status': status_text
+        })
+    
+    if table_data:
+        st.dataframe(
+            pd.DataFrame(table_data),
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Nick": "Uczestnik",
+                "Email": "Email", 
+                "Status": "Problem"
+            }
+        )
     
     # Tabelka szczegółowa (opcjonalnie)
     with st.expander("📋 Szczegółowa tabela"):
@@ -313,4 +391,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("FlyBlog Monitor v3.2 by Insight Shot")
+st.caption("ReflexLab v3.3 by Insight Shot")
