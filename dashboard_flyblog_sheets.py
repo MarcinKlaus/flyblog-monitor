@@ -348,28 +348,32 @@ if df is not None and not df.empty:
     if not critical_df.empty and len(critical_df) > 5:
         st.markdown("---")
         st.subheader(f"🚨 Top 5 najpilniejszych:")
-        st.markdown("```")
-        for _, case in critical_df.head(5).iterrows():
-        else:
-            status_text = ""
         
-        table_data.append({
-            'Nick': str(case.get('Nick', 'brak'))[:15],
-            'Email': str(case.get('Email', case.get('Identyfikator', '')))[:30],
-            'Status': status_text
-        })
-    
-    if table_data:
-        st.dataframe(
-            pd.DataFrame(table_data),
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Nick": "Uczestnik",
-                "Email": "Email", 
-                "Status": "Problem"
-            }
-        )
+        table_data = []
+        for _, case in critical_df.head(5).iterrows():
+            # Sprawdzamy które nazwy kolumn istnieją
+            if 'Podsumowanie' in case:
+                status_text = str(case.get('Podsumowanie', ''))
+            else:
+                status_text = str(case.get('Status', ''))
+            
+            table_data.append({
+                'Nick': str(case.get('Nick', 'brak'))[:15],
+                'Email': str(case.get('Email', case.get('Identyfikator', '')))[:30],
+                'Status': status_text
+            })
+        
+        if table_data:
+            st.dataframe(
+                pd.DataFrame(table_data),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Nick": "Uczestnik",
+                    "Email": "Email", 
+                    "Status": "Problem"
+                }
+            )
     
     # Tabelka szczegółowa (opcjonalnie)
     with st.expander("📋 Szczegółowa tabela"):
