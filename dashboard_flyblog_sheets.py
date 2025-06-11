@@ -279,20 +279,65 @@ if df is not None and not df.empty:
             else:
                 ile_wpisow = row.get('Zadania', 0)
                 
-            if 'IleMilczy' in row:
-                milczenie = str(row.get('IleMilczy', '?'))
-            else:
-                milczenie = str(row.get('Milczenie', '?'))
-                
             if 'BezOdpMod' in row:
                 bez_odp = row.get('BezOdpMod', 0)
             else:
                 bez_odp = row.get('Bez odp.', 0)
                 
             if 'KiedyOstatni' in row:
-                ostatni = str(row.get('KiedyOstatni', '-'))
+                ostatni_raw = str(row.get('KiedyOstatni', '-'))
             else:
-                ostatni = str(row.get('Ostatni post', '-'))
+                ostatni_raw = str(row.get('Ostatni post', '-'))
+                
+            # Formatuj datę ostatniego postu
+            if ostatni_raw == 'Nigdy' or ostatni_raw == '-':
+                ostatni = 'Nigdy'
+            else:
+                try:
+                    # Parsuj datę
+                    from datetime import datetime
+                    now = datetime.now()
+                    
+                    # Próbuj różne formaty
+                    post_date = None
+                    # Format: "11 cze 22:16"
+                    if ' cze ' in ostatni_raw or ' sty ' in ostatni_raw or ' lut ' in ostatni_raw:
+                        polish_months = {
+                            'sty': 1, 'lut': 2, 'mar': 3, 'kwi': 4,
+                            'maj': 5, 'cze': 6, 'lip': 7, 'sie': 8,
+                            'wrz': 9, 'paź': 10, 'lis': 11, 'gru': 12
+                        }
+                        parts = ostatni_raw.split()
+                        if len(parts) >= 3:
+                            day = int(parts[0])
+                            month = polish_months.get(parts[1], now.month)
+                            time_parts = parts[2].split(':')
+                            hour = int(time_parts[0])
+                            minute = int(time_parts[1])
+                            year = now.year
+                            post_date = datetime(year, month, day, hour, minute)
+                    # Format: "2025-06-11"
+                    elif '-' in ostatni_raw and len(ostatni_raw) >= 10:
+                        post_date = datetime.fromisoformat(ostatni_raw)
+                    
+                    if post_date:
+                        # Oblicz różnicę
+                        diff = now - post_date
+                        days_diff = diff.days
+                        
+                        # Formatuj wynik
+                        if days_diff == 0:
+                            ostatni = f"dzisiaj {post_date.strftime('%H:%M')}"
+                        elif days_diff == 1:
+                            ostatni = f"wczoraj {post_date.strftime('%H:%M')}"
+                        elif days_diff < 7:
+                            ostatni = f"{days_diff} dni temu"
+                        else:
+                            ostatni = f"{days_diff//7} tyg. temu"
+                    else:
+                        ostatni = ostatni_raw
+                except:
+                    ostatni = ostatni_raw
                 
             if 'Podsumowanie' in row:
                 status = str(row.get('Podsumowanie', '-'))
@@ -325,9 +370,8 @@ if df is not None and not df.empty:
                 'Uczestnik': uczestnik,
                 'Liczba wpisów': ile_wpisow,
                 'Ostatni post': ostatni,
-                'Ile milczy': milczenie,
                 'Bez odp.': bez_odp,
-                'Podsumowanie': status[:30]  # Skrócone do 30 znaków
+                'Podsumowanie': status[:35]  # Zwiększone do 35 znaków bo mamy więcej miejsca
             })
         return pd.DataFrame(table_data)
     
