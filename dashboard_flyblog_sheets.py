@@ -54,19 +54,19 @@ st.markdown("""
         font-family: 'Manrope', sans-serif !important;
     }
     
-    /* Wycentruj liczby w kolumnach 3 i 5 (Liczba wpisów i Bez odp.) */
-    table td:nth-child(3), table td:nth-child(5) {
+    /* Wycentruj liczby w kolumnach 4 i 6 (Liczba wpisów i Bez odp.) */
+    table td:nth-child(4), table td:nth-child(6) {
         text-align: center !important;
     }
     
     /* Bardziej specyficzne centrowanie dla st.table */
-    .stTable td:nth-child(3), .stTable td:nth-child(5) {
+    .stTable td:nth-child(4), .stTable td:nth-child(6) {
         text-align: center !important;
     }
     
     /* Jeszcze jedna próba dla różnych struktur */
-    div[data-testid="stTable"] td:nth-child(3),
-    div[data-testid="stTable"] td:nth-child(5) {
+    div[data-testid="stTable"] td:nth-child(4),
+    div[data-testid="stTable"] td:nth-child(6) {
         text-align: center !important;
     }
 </style>
