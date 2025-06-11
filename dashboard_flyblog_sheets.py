@@ -300,7 +300,6 @@ if df is not None and not df.empty:
             else:
                 try:
                     # Parsuj datę
-                    from datetime import datetime
                     now = datetime.now()
                     
                     # Próbuj różne formaty
