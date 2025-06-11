@@ -223,9 +223,6 @@ if df is not None and not df.empty:
     filtered_df['priority_order'] = filtered_df['Priority'].map(priority_order)
     filtered_df = filtered_df.sort_values('priority_order').drop('priority_order', axis=1)
     
-    # Nagłówek listy
-    st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {len(df)})")
-    
     # TABELA UCZESTNIKÓW W DWÓCH KOLUMNACH
     st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {len(df)})")
     
@@ -264,18 +261,35 @@ if df is not None and not df.empty:
             else:
                 status = str(row.get('Status', '-'))
             
-            # Dodaj email
+            # Nick i email - krótsze
+            nick = row.get('Nick', '')
             email = str(row.get('Email', row.get('Identyfikator', '')))
-            nick_with_email = f"{row.get('Nick', '')} ({email[:20]}...)" if len(email) > 20 else f"{row.get('Nick', '')} ({email})"
+            
+            # Skracamy nick jeśli za długi
+            if len(nick) > 12:
+                nick = nick[:10] + ".."
+            
+            # Skracamy email bardziej agresywnie
+            if '@' in email:
+                parts = email.split('@')
+                if len(parts[0]) > 8:
+                    email = parts[0][:6] + ".." + "@" + parts[1][:8] + ".."
+                else:
+                    email = parts[0] + "@" + parts[1][:8] + ".."
+            elif len(email) > 15:
+                email = email[:12] + "..."
+            
+            # Łączymy w jedną linię, ale krótko
+            uczestnik = f"{nick} • {email}"
             
             table_data.append({
                 'St': row['Priority'],
-                'Uczestnik': nick_with_email,
+                'Uczestnik': uczestnik,
                 'W': ile_wpisow,
                 'Ost': ostatni[:10],  # Skrócone
                 'M': milczenie,
                 'B': bez_odp,
-                'Status': status[:30]  # Skrócone
+                'Status': status[:25]  # Jeszcze bardziej skrócone
             })
         return pd.DataFrame(table_data)
     
@@ -290,8 +304,9 @@ if df is not None and not df.empty:
             help="Status priorytetu"
         ),
         "Uczestnik": st.column_config.TextColumn(
-            "Uczestnik (email)",
-            width="large"
+            "Uczestnik",
+            width="medium",
+            help="Nick i email"
         ),
         "W": st.column_config.NumberColumn(
             "Wpisów",
@@ -329,7 +344,7 @@ if df is not None and not df.empty:
                 use_container_width=True,
                 hide_index=True,
                 column_config=column_config,
-                height=min(len(table_left) * 35 + 50, 600)  # Dynamiczna wysokość
+                height=min(len(table_left) * 35 + 50, 600)  # Normalna wysokość
             )
     
     with col2:
@@ -340,7 +355,7 @@ if df is not None and not df.empty:
                 use_container_width=True,
                 hide_index=True,
                 column_config=column_config,
-                height=min(len(table_right) * 35 + 50, 600)  # Dynamiczna wysokość
+                height=min(len(table_right) * 35 + 50, 600)  # Normalna wysokość
             )
     
     # Top 5 najpilniejszych
