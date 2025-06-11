@@ -53,6 +53,11 @@ st.markdown("""
     .stMarkdown, .stText, h1, h2, h3, p, span, div {
         font-family: 'Manrope', sans-serif !important;
     }
+    
+    /* Wycentruj liczby w kolumnach 3 i 5 (Liczba wpisów i Bez odp.) */
+    table td:nth-child(3), table td:nth-child(5) {
+        text-align: center !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -326,14 +331,26 @@ if df is not None and not df.empty:
                         days_diff = diff.days
                         
                         # Formatuj wynik
+                        time_str = post_date.strftime('%H:%M')
+                        
                         if days_diff == 0:
-                            ostatni = f"dzisiaj {post_date.strftime('%H:%M')}"
+                            ostatni = f"dzisiaj {time_str}"
                         elif days_diff == 1:
-                            ostatni = f"wczoraj {post_date.strftime('%H:%M')}"
+                            ostatni = f"wczoraj {time_str}"
                         elif days_diff < 7:
-                            ostatni = f"{days_diff} dni temu"
+                            ostatni = f"{days_diff} dni temu {time_str}"
+                        elif days_diff < 30:
+                            weeks = days_diff // 7
+                            if weeks == 1:
+                                ostatni = f"tydzień temu {time_str}"
+                            else:
+                                ostatni = f"{weeks} tyg. temu {time_str}"
                         else:
-                            ostatni = f"{days_diff//7} tyg. temu"
+                            months = days_diff // 30
+                            if months == 1:
+                                ostatni = f"miesiąc temu"
+                            else:
+                                ostatni = f"{months} mies. temu"
                     else:
                         ostatni = ostatni_raw
                 except:
