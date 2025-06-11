@@ -331,9 +331,6 @@ if df is not None and not df.empty:
             })
         return pd.DataFrame(table_data)
     
-    # Dwie kolumny z tabelami
-    col1, col2 = st.columns(2)
-    
     # Konfiguracja kolumn dla obu tabel
     column_config = {
         "St": st.column_config.TextColumn(
@@ -374,35 +371,38 @@ if df is not None and not df.empty:
         )
     }
     
-    with col1:
-        st.markdown("### 👩 Karolina Moderuje")
-        st.markdown(f"*Uczestniczki: {len(left_df)}*")
-        if not left_df.empty:
-            table_left = prepare_table_data(left_df)
-            st.dataframe(
-                table_left,
-                use_container_width=True,
-                hide_index=True,
-                column_config=column_config,
-                height=min(len(table_left) * 35 + 50, 600)
-            )
-        else:
-            st.info("Brak uczestniczek w tej grupie")
+    # PIERWSZA TABELA - Karolina
+    st.markdown("### 👩 Karolina Moderuje")
+    st.markdown(f"*Uczestniczki: {len(left_df)}*")
+    if not left_df.empty:
+        table_left = prepare_table_data(left_df)
+        st.dataframe(
+            table_left,
+            use_container_width=True,
+            hide_index=True,
+            column_config=column_config,
+            height=None  # Automatyczna wysokość - pokaże wszystko
+        )
+    else:
+        st.info("Brak uczestniczek w tej grupie")
     
-    with col2:
-        st.markdown("### 👨 Marcin Moderuje")
-        st.markdown(f"*Uczestnicy: {len(right_df)}*")
-        if not right_df.empty:
-            table_right = prepare_table_data(right_df)
-            st.dataframe(
-                table_right,
-                use_container_width=True,
-                hide_index=True,
-                column_config=column_config,
-                height=min(len(table_right) * 35 + 50, 600)
-            )
-        else:
-            st.info("Brak uczestników w tej grupie")
+    # ODSTĘP
+    st.markdown("---")
+    
+    # DRUGA TABELA - Marcin
+    st.markdown("### 👨 Marcin Moderuje")
+    st.markdown(f"*Uczestnicy: {len(right_df)}*")
+    if not right_df.empty:
+        table_right = prepare_table_data(right_df)
+        st.dataframe(
+            table_right,
+            use_container_width=True,
+            hide_index=True,
+            column_config=column_config,
+            height=None  # Automatyczna wysokość - pokaże wszystko
+        )
+    else:
+        st.info("Brak uczestników w tej grupie")
     
     # Top 5 najpilniejszych
     critical_df = filtered_df[filtered_df['Priority'].isin(['🔴🔴🔴', '🔴🔴'])]
