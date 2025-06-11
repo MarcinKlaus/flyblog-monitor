@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-FlyBlog Monitor - Dashboard WWW czytający z Google Sheets
-Wersja dla Streamlit Cloud - nie wymaga lokalnych plików
+FlyBlog Monitor - Dashboard v2
+- Naprawiony problem z "None"
+- Lista uczestników na pełnej stronie (bez ramki)
 """
 
 import streamlit as st
@@ -28,11 +29,14 @@ def load_data_from_sheets():
         # Buduj URL do CSV
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=csv"
         
-        # Wczytaj dane
-        df = pd.read_csv(url, header=2)  # Nagłówki są w 3 wierszu (index 2)
+        # Wczytaj dane - POPRAWKA: skiprows=1 pomija pierwszy wiersz z info
+        df = pd.read_csv(url, skiprows=1)
         
         # Wyczyść nazwy kolumn
         df.columns = df.columns.str.strip()
+        
+        # Debug - pokaż jakie kolumny znalazł
+        print(f"Znalezione kolumny: {list(df.columns)}")
         
         return df
     except Exception as e:
@@ -50,25 +54,24 @@ def parse_silence_hours(silence_str):
     except:
         return 0
 
-# Funkcja do określania priorytetu
+# Funkcja do określania priorytetu emoji
 def get_priority_emoji(row):
-    """Zwraca emoji priorytetu na podstawie danych"""
+    """Zwraca emoji priorytetu na podstawie statusu"""
     try:
-        silence_hours = parse_silence_hours(row.get('Milczenie (h)', 'Nigdy'))
-        posts_since = int(row.get('Od moderatora', 0))
+        status = str(row.get('Status', '')).upper()
         
-        if silence_hours >= 72:
+        if 'NIGDY NIE PISAŁ' in status or 'TRAGEDIA' in status:
             return "🔴🔴🔴"
-        elif posts_since >= 10:
+        elif 'NIE PISAŁ WCZORAJ' in status or 'KRYTYCZNE' in status:
             return "🔴🔴"
-        elif silence_hours >= 48:
+        elif 'BRAKUJE' in status and 'ZADAŃ' in status:
             return "🔴"
-        elif posts_since >= 5:
+        elif 'NIE ZACZĄŁ DZISIAJ' in status or 'POSTÓW' in status:
             return "🟡"
-        elif silence_hours >= 24:
-            return "🟠"
-        else:
+        elif 'SUPER' in status or 'OK' in status:
             return "🟢"
+        else:
+            return "⚪"
     except:
         return "⚪"
 
@@ -80,14 +83,12 @@ st.markdown("---")
 df = load_data_from_sheets()
 
 if df is not None and not df.empty:
-    # Pobierz czas ostatniego sprawdzenia z pierwszego wiersza
+    # Pobierz informacje z pierwszego wiersza oryginalnego pliku
     try:
-        # Odczytaj pierwszy wiersz który zawiera info o ostatnim sprawdzeniu
-        with st.spinner('Ładowanie danych...'):
-            url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=csv"
-            df_header = pd.read_csv(url, nrows=1, header=None)
-            last_check = df_header.iloc[0, 0] if not df_header.empty else "Nieznany"
-            st.subheader(f"⏰ {last_check}")
+        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=csv"
+        df_header = pd.read_csv(url, nrows=1, header=None)
+        last_check = df_header.iloc[0, 0] if not df_header.empty else "Nieznany"
+        st.subheader(f"⏰ {last_check}")
     except:
         st.subheader("⏰ Dane z Google Sheets")
     
@@ -95,7 +96,7 @@ if df is not None and not df.empty:
     df['Priority'] = df.apply(get_priority_emoji, axis=1)
     
     # Konwertuj kolumny numeryczne
-    numeric_columns = ['Respondent', 'Moderator', 'Od moderatora']
+    numeric_columns = ['Zadania', 'Moderator', 'Bez odp.']
     for col in numeric_columns:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
@@ -109,26 +110,16 @@ if df is not None and not df.empty:
     
     with col2:
         # Policz krytyczne przypadki
-        critical = 0
-        for _, row in df.iterrows():
-            silence = parse_silence_hours(row.get('Milczenie (h)', 'Nigdy'))
-            posts = int(row.get('Od moderatora', 0))
-            if silence >= 72 or posts >= 10:
-                critical += 1
+        critical = len(df[df['Priority'].isin(['🔴🔴🔴', '🔴🔴'])])
         st.metric("🔴 Krytyczne przypadki", critical)
     
     with col3:
         # Policz wymagające uwagi
-        warning = 0
-        for _, row in df.iterrows():
-            silence = parse_silence_hours(row.get('Milczenie (h)', 'Nigdy'))
-            posts = int(row.get('Od moderatora', 0))
-            if (24 <= silence < 72) or (5 <= posts < 10):
-                warning += 1
+        warning = len(df[df['Priority'] == '🟡'])
         st.metric("🟡 Wymagają uwagi", warning)
     
     with col4:
-        ok = len(df[df['Priority'] == "🟢"])
+        ok = len(df[df['Priority'] == '🟢'])
         st.metric("🟢 Wszystko OK", ok)
     
     st.markdown("---")
@@ -148,75 +139,114 @@ if df is not None and not df.empty:
     silence_min = st.sidebar.slider("Milczy minimum (h)", 0, 168, 0)
     
     # Filtr postów od moderatora
-    posts_min = st.sidebar.slider("Postów od moderatora minimum", 0, 50, 0)
+    posts_min = st.sidebar.slider("Postów bez odpowiedzi minimum", 0, 50, 0)
     
     # Zastosuj filtry
     filtered_df = df[df['Priority'].isin(status_filter)].copy()
     
     # Filtruj po milczeniu
-    if 'Milczenie (h)' in filtered_df.columns:
-        filtered_df['silence_hours_num'] = filtered_df['Milczenie (h)'].apply(parse_silence_hours)
+    if 'Milczenie' in filtered_df.columns:
+        filtered_df['silence_hours_num'] = filtered_df['Milczenie'].apply(parse_silence_hours)
         filtered_df = filtered_df[filtered_df['silence_hours_num'] >= silence_min]
         filtered_df = filtered_df.drop('silence_hours_num', axis=1)
     
     # Filtruj po postach
-    if 'Od moderatora' in filtered_df.columns:
-        filtered_df = filtered_df[filtered_df['Od moderatora'] >= posts_min]
+    if 'Bez odp.' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['Bez odp.'] >= posts_min]
     
-    # Sortuj według ważności
-    if 'Od moderatora' in filtered_df.columns and 'Milczenie (h)' in filtered_df.columns:
-        filtered_df['silence_for_sort'] = filtered_df['Milczenie (h)'].apply(parse_silence_hours)
-        filtered_df = filtered_df.sort_values(
-            by=['Od moderatora', 'silence_for_sort'], 
-            ascending=[False, False]
-        ).drop('silence_for_sort', axis=1)
+    # Sortuj według priorytetu
+    priority_order = {'🔴🔴🔴': 0, '🔴🔴': 1, '🔴': 2, '🟡': 3, '🟢': 4, '⚪': 5}
+    filtered_df['priority_order'] = filtered_df['Priority'].map(priority_order)
+    filtered_df = filtered_df.sort_values('priority_order').drop('priority_order', axis=1)
     
-    # Tabela z danymi
+    # Nagłówek sekcji
     st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {total})")
     
-    # Kolejność kolumn
-    column_order = ['Priority', 'Nick', 'Email', 'Ostatni post', 'Milczenie (h)', 
-                   'Respondent', 'Moderator', 'Od moderatora', 'Status']
+    # NOWE: Link do projektu na górze
+    if len(last_check) > 20 and "Projekt:" in last_check:
+        try:
+            project_id = re.search(r'Projekt:\s*(\d+)', last_check).group(1)
+            st.markdown(f"🔗 [Otwórz projekt {project_id} na FlyBlog](https://forum.flyblog.pl/{project_id}/)")
+        except:
+            pass
     
-    # Sprawdź które kolumny istnieją
-    existing_columns = [col for col in column_order if col in filtered_df.columns]
+    st.markdown("---")
     
-    # Wyświetl tabelę
-    if not filtered_df.empty:
-        st.dataframe(
-            filtered_df[existing_columns],
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Priority": st.column_config.TextColumn("🎯", width="small"),
-                "Nick": st.column_config.TextColumn("Nick", width="small"),
-                "Email": st.column_config.TextColumn("Email", width="medium"),
-                "Ostatni post": st.column_config.TextColumn("Ostatni post", width="small"),
-                "Milczenie (h)": st.column_config.TextColumn("Milczy", width="small"),
-                "Respondent": st.column_config.NumberColumn("R", width="small"),
-                "Moderator": st.column_config.NumberColumn("M", width="small"),
-                "Od moderatora": st.column_config.NumberColumn("Od mod.", width="small"),
-                "Status": st.column_config.TextColumn("Status", width="medium"),
-            }
-        )
-        
-        # Sekcja krytycznych przypadków
-        critical_df = filtered_df[filtered_df['Priority'].isin(["🔴🔴🔴", "🔴🔴"])]
-        if not critical_df.empty:
-            st.markdown("---")
-            st.subheader("🚨 Krytyczne przypadki wymagające natychmiastowej uwagi:")
+    # ZMIANA: Zamiast st.dataframe używamy iteracji po uczestnikach
+    # To pozwala na dodanie przycisków i lepsze formatowanie
+    
+    for idx, row in filtered_df.iterrows():
+        # Kontener dla każdego uczestnika
+        with st.container():
+            col1, col2, col3, col4, col5 = st.columns([0.5, 2, 3, 1, 1])
             
-            for _, case in critical_df.head(5).iterrows():
-                with st.expander(f"{case['Priority']} {case.get('Nick', 'Brak nicku')} - {case.get('Email', 'Brak emaila')}"):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write(f"**Postów od moderatora:** {case.get('Od moderatora', 0)}")
-                        st.write(f"**Ostatni post:** {case.get('Ostatni post', 'Nieznany')}")
-                    with col2:
-                        st.write(f"**Milczy:** {case.get('Milczenie (h)', 'Nieznane')}")
-                        st.write(f"**Status:** {case.get('Status', 'Nieznany')}")
-    else:
-        st.info("Brak uczestników spełniających kryteria filtrów")
+            with col1:
+                st.write(row['Priority'])
+            
+            with col2:
+                # Nick z możliwością skopiowania
+                nick = row.get('Nick', 'Brak')
+                if nick and nick != '-':
+                    st.markdown(f"**{nick}**")
+                    if st.button("📋", key=f"copy_{idx}", help=f"Kopiuj nick: {nick}"):
+                        # Streamlit nie ma wbudowanego kopiowania, ale możemy pokazać
+                        st.code(nick, language=None)
+                else:
+                    st.write("_Brak nicku_")
+                
+                # Email/Identyfikator w mniejszym foncie
+                email = row.get('Identyfikator', '')
+                if email and email != '-':
+                    st.caption(email)
+            
+            with col3:
+                # Status i szczegóły
+                st.write(row.get('Status', ''))
+                
+                # Dodatkowe info
+                details = []
+                if 'Ostatni post' in row:
+                    details.append(f"Ostatni post: {row['Ostatni post']}")
+                if 'Milczenie' in row:
+                    details.append(f"Milczy: {row['Milczenie']}")
+                if 'Bez odp.' in row and row['Bez odp.'] > 0:
+                    details.append(f"Bez odp.: {row['Bez odp.']}")
+                
+                if details:
+                    st.caption(" | ".join(details))
+            
+            with col4:
+                # Zadania
+                zadania = row.get('Zadania', 0)
+                moderator = row.get('Moderator', 0)
+                st.write(f"📝 {zadania}/{moderator}")
+            
+            with col5:
+                # Miejsce na przyszłe akcje
+                if row['Priority'] in ['🔴🔴🔴', '🔴🔴']:
+                    st.write("❗ PILNE")
+            
+            # Separator między uczestnikami
+            st.divider()
+    
+    # Sekcja krytycznych przypadków
+    critical_df = filtered_df[filtered_df['Priority'].isin(['🔴🔴🔴', '🔴🔴'])]
+    if not critical_df.empty:
+        st.markdown("---")
+        st.subheader("🚨 Krytyczne przypadki wymagające natychmiastowej uwagi:")
+        
+        for _, case in critical_df.head(5).iterrows():
+            with st.expander(f"{case['Priority']} {case.get('Nick', 'Brak nicku')} - {case.get('Status', 'Brak statusu')}"):
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.write(f"**Email:** {case.get('Identyfikator', 'Brak')}")
+                    st.write(f"**Ostatni post:** {case.get('Ostatni post', 'Nieznany')}")
+                    st.write(f"**Zadań:** {case.get('Zadania', 0)}")
+                with col2:
+                    st.write(f"**Milczy:** {case.get('Milczenie', 'Nieznane')}")
+                    st.write(f"**Bez odpowiedzi:** {case.get('Bez odp.', 0)}")
+                    if case.get('Imię'):
+                        st.write(f"**Imię:** {case.get('Imię', '')}")
     
     # Automatyczne odświeżanie
     st.markdown("---")
@@ -224,17 +254,15 @@ if df is not None and not df.empty:
         st.cache_data.clear()
         st.rerun()
     
-    # Info o automatycznym odświeżaniu
+    # Info
     st.caption("Dashboard odświeża dane z Google Sheets co 60 sekund")
-    
-    # Link do arkusza
     st.caption(f"[📊 Otwórz arkusz Google Sheets](https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID})")
     
 else:
     st.error("❌ Nie można załadować danych z Google Sheets")
     st.info("""
     **Możliwe przyczyny:**
-    1. Arkusz nie jest publiczny (udostępnij go z prawami 'Każdy z linkiem może wyświetlać')
+    1. Arkusz nie jest publiczny
     2. Nieprawidłowe ID arkusza
     3. Problem z połączeniem
     """)
@@ -244,7 +272,7 @@ st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: gray;'>
-        FlyBlog Monitor v1.6 | Dashboard by Streamlit<br>
+        FlyBlog Monitor v2.0 | Dashboard by Streamlit<br>
         <small>Dane z Google Sheets aktualizowane przez monitor lokalny</small>
     </div>
     """,
