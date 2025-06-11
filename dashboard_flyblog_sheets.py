@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """
-FlyBlog Monitor - Dashboard v3.1 - wersja z poprawkami
-- Dwie kolumny uczestników
-- Naprawione błędy .ljust()
-- "by Insight Shot" w tytule
-- Link zamiast "PEŁNY"
+ReflexLab™ Monitor - Dashboard v4.0
+- Czcionka Manrope
+- Guzik odświeżania w nagłówku
+- ReflexLab™ zamiast FlyBlog Monitor
 """
 
 import streamlit as st
@@ -14,8 +13,8 @@ import re
 
 # Konfiguracja strony
 st.set_page_config(
-    page_title="FlyBlog Monitor",
-    page_icon="🔍",
+    page_title="ReflexLab™ Monitor",
+    page_icon="🔬",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -67,23 +66,71 @@ def get_priority_emoji(row):
     except:
         return "⚪"
 
-# CSS dla kompaktowego wyświetlania
+# CSS dla czcionki Manrope i stylów
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap');
+    
+    /* Aplikuj czcionkę Manrope globalnie */
+    html, body, [class*="css"] {
+        font-family: 'Manrope', sans-serif;
+    }
+    
     .stApp {
         max-width: 100%;
+        font-family: 'Manrope', sans-serif;
     }
+    
     .block-container {
         padding-top: 2rem;
     }
+    
     div[data-testid="stHorizontalBlock"] > div {
         padding: 0 5px;
+    }
+    
+    /* Stylizacja tytułu */
+    h1 {
+        font-family: 'Manrope', sans-serif !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Stylizacja wszystkich elementów tekstowych */
+    h2, h3, h4, h5, h6, p, span, div, label {
+        font-family: 'Manrope', sans-serif !important;
+    }
+    
+    /* Stylizacja metryk */
+    [data-testid="metric-container"] {
+        font-family: 'Manrope', sans-serif !important;
+    }
+    
+    /* Stylizacja guzika odświeżania */
+    .refresh-button {
+        display: inline-block;
+        margin-left: 20px;
+        vertical-align: middle;
+    }
+    
+    /* Ukryj domyślny padding nagłówka */
+    .main-header {
+        display: flex;
+        align-items: center;
+        gap: 20px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Tytuł z "by Insight Shot"
-st.title("🔍 FlyBlog Monitor by Insight Shot")
+# Nagłówek z guzikiem odświeżania
+col_title, col_refresh = st.columns([6, 1])
+
+with col_title:
+    st.markdown("# 🔬 ReflexLab™ Monitor by Insight Shot")
+
+with col_refresh:
+    if st.button("🔄 Odśwież", key="refresh_top", help="Kliknij aby odświeżyć dane"):
+        st.cache_data.clear()
+        st.rerun()
 
 # Wczytaj dane
 df = load_data_from_sheets()
@@ -108,7 +155,7 @@ if df is not None and not df.empty:
         time_match = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})', header_text)
         check_time = time_match.group(1) if time_match else "Nieznany czas"
         
-        # Nagłówek z linkiem zamiast "PEŁNY"
+        # Nagłówek z linkiem
         parts = [f"⏰ {check_time}"]
         if day_info:
             parts.append(day_info)
@@ -192,8 +239,8 @@ if df is not None and not df.empty:
     # Funkcja do formatowania linii
     def format_line(row):
         emoji = row['Priority']
-        nick = str(row.get('Nick', 'brak'))[:12].ljust(12)  # Skrócone do 12 znaków
-        status = str(row.get('Status', 'Brak'))[:25]  # Skrócone do 25 znaków
+        nick = str(row.get('Nick', 'brak'))[:12].ljust(12)
+        status = str(row.get('Status', 'Brak'))[:25]
         zadania = f"Z:{row.get('Zadania', 0)}"
         milczenie = str(row.get('Milczenie', '?'))
         
@@ -217,32 +264,31 @@ if df is not None and not df.empty:
             st.text("")
         st.markdown("```")
     
-    # Top 5 najpilniejszych - POPRAWIONE
+    # Top 5 najpilniejszych
     critical_df = filtered_df[filtered_df['Priority'].isin(['🔴🔴🔴', '🔴🔴'])]
     if not critical_df.empty and len(critical_df) > 5:
         st.markdown("---")
         st.subheader(f"🚨 Top 5 najpilniejszych:")
         st.markdown("```")
         for _, case in critical_df.head(5).iterrows():
-            nick = str(case.get('Nick', 'brak'))[:15].ljust(15)  # POPRAWIONE!
+            nick = str(case.get('Nick', 'brak'))[:15].ljust(15)
             email = str(case.get('Identyfikator', ''))[:30]
             status = str(case.get('Status', ''))
             st.text(f"❗ {nick} ({email}) - {status}")
         st.markdown("```")
     
-    # Przyciski na dole
+    # Informacja o automatycznym odświeżaniu
     st.markdown("---")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("🔄 Odśwież dane"):
-            st.cache_data.clear()
-            st.rerun()
-    with col2:
-        st.caption("Dane odświeżają się co 60 sekund")
+    st.caption("📡 Dane odświeżają się automatycznie co 60 sekund")
     
 else:
     st.error("❌ Nie można załadować danych z Google Sheets")
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("🔄 Spróbuj ponownie"):
+            st.cache_data.clear()
+            st.rerun()
 
 # Footer
 st.markdown("---")
-st.caption("FlyBlog Monitor v3.1 by Insight Shot")
+st.caption("ReflexLab™ Monitor v4.0 by Insight Shot")
