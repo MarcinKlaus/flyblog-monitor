@@ -106,10 +106,30 @@ st.markdown("""
     }
     
     /* Stylizacja guzika odświeżania */
-    .refresh-button {
-        display: inline-block;
-        margin-left: 20px;
-        vertical-align: middle;
+    .stButton > button {
+        background-color: #6B46C1 !important;
+        color: white !important;
+        border: none !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stButton > button:hover {
+        background-color: #553C9A !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 12px rgba(107, 70, 193, 0.3) !important;
+    }
+    
+    /* Stylizacja linków */
+    a {
+        color: #6B46C1 !important;
+        text-decoration: none !important;
+        font-weight: 500 !important;
+    }
+    
+    a:hover {
+        color: #553C9A !important;
+        text-decoration: underline !important;
     }
     
     /* Ukryj domyślny padding nagłówka */
@@ -121,16 +141,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Nagłówek z guzikiem odświeżania
-col_title, col_refresh = st.columns([6, 1])
-
-with col_title:
-    st.markdown("# 🧘 ReflexLab™ by Insight Shot")
-
-with col_refresh:
-    if st.button("🔄 Odśwież dane", key="refresh_top", help="Kliknij aby odświeżyć dane"):
-        st.cache_data.clear()
-        st.rerun()
+# Nagłówek
+st.markdown("# 🧘 ReflexLab™ by Insight Shot")
 
 # Wczytaj dane
 df = load_data_from_sheets()
@@ -177,8 +189,8 @@ if df is not None and not df.empty:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
     
-    # Statystyki
-    col1, col2, col3, col4 = st.columns(4)
+    # Statystyki z guzikiem odświeżania
+    col1, col2, col3, col4, col_refresh = st.columns([1.5, 1.5, 1.5, 1.5, 2])
     
     with col1:
         st.metric("👥 Wszyscy", len(df))
@@ -191,6 +203,11 @@ if df is not None and not df.empty:
     with col4:
         ok = len(df[df['Priority'] == '🟢'])
         st.metric("🟢 OK", ok)
+    with col_refresh:
+        st.markdown("<br>", unsafe_allow_html=True)  # Wyrównanie w pionie
+        if st.button("🔄 Odśwież dane", key="refresh_main", help="Kliknij aby odświeżyć dane"):
+            st.cache_data.clear()
+            st.rerun()
     
     st.markdown("---")
     
