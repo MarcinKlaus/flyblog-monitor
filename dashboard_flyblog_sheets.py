@@ -186,7 +186,7 @@ if df is not None and not df.empty:
     for _, row in filtered_df.iterrows():
         # Przygotuj części
         emoji = row['Priority']
-        nick = row.get('Nick', 'brak').ljust(15)  # Wyrównaj do 15 znaków
+        nick = str(row.get('Nick', 'brak'))[:15].ljust(15)  # Wyrównaj do 15 znaków
         status = row.get('Status', 'Brak statusu')[:30]  # Max 30 znaków
         zadania = f"Zadań: {row.get('Zadania', 0)}"
         milczenie = f"Milczy: {row.get('Milczenie', '?')}"
