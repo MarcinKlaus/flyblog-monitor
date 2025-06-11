@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-FlyBlog Monitor - Dashboard v3 - wersja kompaktowa
-- Jedna linia na uczestnika
-- Bez zbędnych elementów
-- Maksymalna ilość info na ekranie
+FlyBlog Monitor - Dashboard v3.1 - wersja z poprawkami
+- Dwie kolumny uczestników
+- Naprawione błędy .ljust()
+- "by Insight Shot" w tytule
+- Link zamiast "PEŁNY"
 """
 
 import streamlit as st
@@ -16,19 +17,19 @@ st.set_page_config(
     page_title="FlyBlog Monitor",
     page_icon="🔍",
     layout="wide",
-    initial_sidebar_state="collapsed"  # Domyślnie schowany sidebar
+    initial_sidebar_state="collapsed"
 )
 
 # ID arkusza Google Sheets
 GOOGLE_SHEETS_ID = "1uW4Hy9O4R5if0pe9TIkjGO7i-gZBIBklbOHhqdS0GJg"
 
 # Funkcja do wczytywania danych z Google Sheets
-@st.cache_data(ttl=60)  # Cache na 60 sekund
+@st.cache_data(ttl=60)
 def load_data_from_sheets():
     """Wczytuje dane z publicznego arkusza Google Sheets"""
     try:
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=csv"
-        df = pd.read_csv(url, header=2)  # Nagłówki są w 3 wierszu
+        df = pd.read_csv(url, header=2)
         df.columns = df.columns.str.strip()
         return df
     except Exception as e:
@@ -72,26 +73,17 @@ st.markdown("""
     .stApp {
         max-width: 100%;
     }
-    .user-line {
-        font-family: monospace;
-        font-size: 14px;
-        line-height: 1.8;
-        padding: 2px 0;
+    .block-container {
+        padding-top: 2rem;
     }
-    .nick {
-        font-weight: bold;
-        min-width: 150px;
-        display: inline-block;
-    }
-    .separator {
-        color: #666;
-        margin: 0 8px;
+    div[data-testid="stHorizontalBlock"] > div {
+        padding: 0 5px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Tytuł
-st.title("🔍 FlyBlog Monitor")
+# Tytuł z "by Insight Shot"
+st.title("🔍 FlyBlog Monitor by Insight Shot")
 
 # Wczytaj dane
 df = load_data_from_sheets()
@@ -101,18 +93,31 @@ if df is not None and not df.empty:
     try:
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=csv"
         df_header = pd.read_csv(url, nrows=1, header=None)
-        last_check = df_header.iloc[0, 0] if not df_header.empty else "Nieznany"
+        header_text = df_header.iloc[0, 0] if not df_header.empty else ""
         
-        # Wyciągnij numer projektu
-        project_match = re.search(r'Projekt:\s*(\d+)', last_check)
+        # Parsuj informacje z nagłówka
+        project_match = re.search(r'Projekt:\s*(\d+)', header_text)
         project_id = project_match.group(1) if project_match else "1139"
         
-        # Nagłówek z linkiem
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.subheader(f"⏰ {last_check}")
-        with col2:
-            st.markdown(f"[🔗 Otwórz FlyBlog {project_id}](https://forum.flyblog.pl/{project_id}/)")
+        day_match = re.search(r'Dzień\s*(\d+)/(\d+)', header_text)
+        day_info = f"Dzień {day_match.group(1)}/{day_match.group(2)}" if day_match else ""
+        
+        tasks_match = re.search(r'Zadań:\s*(\d+)', header_text)
+        tasks_info = f"Zadań: {tasks_match.group(1)}" if tasks_match else ""
+        
+        time_match = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})', header_text)
+        check_time = time_match.group(1) if time_match else "Nieznany czas"
+        
+        # Nagłówek z linkiem zamiast "PEŁNY"
+        parts = [f"⏰ {check_time}"]
+        if day_info:
+            parts.append(day_info)
+        if tasks_info:
+            parts.append(tasks_info)
+        
+        header_line = " | ".join(parts) + f" | [🔗 Otwórz FlyBlog {project_id}](https://forum.flyblog.pl/{project_id}/)"
+        st.subheader(header_line)
+        
     except:
         st.subheader("⏰ Dane z Google Sheets")
     
@@ -142,11 +147,10 @@ if df is not None and not df.empty:
     
     st.markdown("---")
     
-    # Filtry w sidebarze (opcjonalne)
+    # Filtry w sidebarze
     with st.sidebar:
         st.header("🔧 Filtry")
         
-        # Filtr statusu
         all_priorities = df['Priority'].unique().tolist()
         status_filter = st.multiselect(
             "Status",
@@ -154,22 +158,17 @@ if df is not None and not df.empty:
             default=all_priorities
         )
         
-        # Filtr milczenia
         silence_min = st.slider("Milczy minimum (h)", 0, 168, 0)
-        
-        # Filtr postów
         posts_min = st.slider("Bez odpowiedzi min", 0, 50, 0)
     
     # Zastosuj filtry
     filtered_df = df[df['Priority'].isin(status_filter)].copy()
     
-    # Filtruj po milczeniu
     if 'Milczenie' in filtered_df.columns:
         filtered_df['silence_hours_num'] = filtered_df['Milczenie'].apply(parse_silence_hours)
         filtered_df = filtered_df[filtered_df['silence_hours_num'] >= silence_min]
         filtered_df = filtered_df.drop('silence_hours_num', axis=1)
     
-    # Filtruj po postach
     if 'Bez odp.' in filtered_df.columns:
         filtered_df = filtered_df[filtered_df['Bez odp.'] >= posts_min]
     
@@ -181,36 +180,54 @@ if df is not None and not df.empty:
     # Nagłówek listy
     st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {len(df)})")
     
-    # KOMPAKTOWA LISTA - wszystko w jednej linii
-    st.markdown("```")
-    for _, row in filtered_df.iterrows():
-        # Przygotuj części
-        emoji = row['Priority']
-        nick = str(row.get('Nick', 'brak'))[:15].ljust(15)  # Wyrównaj do 15 znaków
-        status = row.get('Status', 'Brak statusu')[:30]  # Max 30 znaków
-        zadania = f"Zadań: {row.get('Zadania', 0)}"
-        milczenie = f"Milczy: {row.get('Milczenie', '?')}"
-        bez_odp = f"Bez odp: {row.get('Bez odp.', 0)}" if row.get('Bez odp.', 0) > 0 else ""
-        
-        # Złóż linię
-        parts = [emoji, nick, status, zadania, milczenie]
-        if bez_odp:
-            parts.append(bez_odp)
-        
-        line = " | ".join(parts)
-        st.text(line)
-    st.markdown("```")
+    # DWIE KOLUMNY UCZESTNIKÓW
+    # Podziel dane na dwie części
+    half = len(filtered_df) // 2
+    left_df = filtered_df.iloc[:half]
+    right_df = filtered_df.iloc[half:]
     
-    # Krytyczne przypadki - opcjonalnie na dole
+    # Utwórz dwie kolumny
+    col_left, col_right = st.columns(2)
+    
+    # Funkcja do formatowania linii
+    def format_line(row):
+        emoji = row['Priority']
+        nick = str(row.get('Nick', 'brak'))[:12].ljust(12)  # Skrócone do 12 znaków
+        status = str(row.get('Status', 'Brak'))[:25]  # Skrócone do 25 znaków
+        zadania = f"Z:{row.get('Zadania', 0)}"
+        milczenie = str(row.get('Milczenie', '?'))
+        
+        parts = [emoji, nick, status, zadania, milczenie]
+        return " | ".join(parts)
+    
+    # Lewa kolumna
+    with col_left:
+        st.markdown("```")
+        for _, row in left_df.iterrows():
+            st.text(format_line(row))
+        st.markdown("```")
+    
+    # Prawa kolumna
+    with col_right:
+        st.markdown("```")
+        for _, row in right_df.iterrows():
+            st.text(format_line(row))
+        # Jeśli nieparzysta liczba, dodaj pustą linię
+        if len(right_df) < len(left_df):
+            st.text("")
+        st.markdown("```")
+    
+    # Top 5 najpilniejszych - POPRAWIONE
     critical_df = filtered_df[filtered_df['Priority'].isin(['🔴🔴🔴', '🔴🔴'])]
     if not critical_df.empty and len(critical_df) > 5:
         st.markdown("---")
         st.subheader(f"🚨 Top 5 najpilniejszych:")
         st.markdown("```")
         for _, case in critical_df.head(5).iterrows():
-            nick = case.get('Nick', 'brak').ljust(15)
-            email = case.get('Identyfikator', '')[:30]
-            st.text(f"❗ {nick} ({email}) - {case.get('Status', '')}")
+            nick = str(case.get('Nick', 'brak'))[:15].ljust(15)  # POPRAWIONE!
+            email = str(case.get('Identyfikator', ''))[:30]
+            status = str(case.get('Status', ''))
+            st.text(f"❗ {nick} ({email}) - {status}")
         st.markdown("```")
     
     # Przyciski na dole
@@ -226,6 +243,6 @@ if df is not None and not df.empty:
 else:
     st.error("❌ Nie można załadować danych z Google Sheets")
 
-# Minimalistyczny footer
+# Footer
 st.markdown("---")
-st.caption("FlyBlog Monitor v3.0 - wersja kompaktowa")
+st.caption("FlyBlog Monitor v3.1 by Insight Shot")
