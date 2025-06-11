@@ -380,8 +380,8 @@ if df is not None and not df.empty:
             table_left,
             use_container_width=True,
             hide_index=True,
-            column_config=column_config,
-            height=None  # Automatyczna wysokość - pokaże wszystko
+            column_config=column_config
+            # Usunięty parametr height - tabela pokaże wszystkie wiersze
         )
     else:
         st.info("Brak uczestniczek w tej grupie")
@@ -398,8 +398,8 @@ if df is not None and not df.empty:
             table_right,
             use_container_width=True,
             hide_index=True,
-            column_config=column_config,
-            height=None  # Automatyczna wysokość - pokaże wszystko
+            column_config=column_config
+            # Usunięty parametr height - tabela pokaże wszystkie wiersze
         )
     else:
         st.info("Brak uczestników w tej grupie")
