@@ -30,7 +30,7 @@ def load_data_from_sheets():
         url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=csv"
         
         # Wczytaj dane - POPRAWKA: skiprows=1 pomija pierwszy wiersz z info
-        df = pd.read_csv(url, skiprows=1)
+        df = pd.read_csv(url, header=2)
         
         # Wyczyść nazwy kolumn
         df.columns = df.columns.str.strip()
