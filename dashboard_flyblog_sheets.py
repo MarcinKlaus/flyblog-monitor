@@ -189,7 +189,34 @@ if df is not None and not df.empty:
         ok = len(df[df['Priority'] == '🟢'])
         st.metric("🟢 OK", ok)
     
+    # Dodajmy statystyki płci
+    if 'Płeć' in df.columns:
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.metric("👩 Kobiety", len(df[df['Płeć'] == 'K']))
+        with col2:
+            st.metric("👨 Mężczyźni", len(df[df['Płeć'] == 'M']))
+        with col3:
+            st.metric("❓ Nieznana", len(df[df['Płeć'] == 'Nieznana']))
+        with col4:
+            st.metric("", "")  # Pusta kolumna dla wyrównania
+    
     st.markdown("---")
+    
+    # Statystyki płci
+    if 'Płeć' in df.columns:
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            female_count = len(df[df['Płeć'] == 'K'])
+            st.metric("👩 Kobiety", female_count)
+        with col2:
+            male_count = len(df[df['Płeć'] == 'M'])
+            st.metric("👨 Mężczyźni", male_count)
+        with col3:
+            unknown_count = len(df[df['Płeć'] == 'Nieznana'])
+            st.metric("❓ Nieznana płeć", unknown_count)
+        with col4:
+            st.metric("", "")  # Pusta dla wyrównania
     
     # Filtry w sidebarze
     with st.sidebar:
@@ -223,13 +250,19 @@ if df is not None and not df.empty:
     filtered_df['priority_order'] = filtered_df['Priority'].map(priority_order)
     filtered_df = filtered_df.sort_values('priority_order').drop('priority_order', axis=1)
     
-    # TABELA UCZESTNIKÓW W DWÓCH KOLUMNACH
+    # TABELA UCZESTNIKÓW - PODZIAŁ NA PŁEĆ
     st.subheader(f"📊 Uczestnicy ({len(filtered_df)} z {len(df)})")
     
-    # Podziel dane na dwie części
-    half = len(filtered_df) // 2
-    left_df = filtered_df.iloc[:half]
-    right_df = filtered_df.iloc[half:]
+    # Podziel dane według płci
+    female_df = filtered_df[filtered_df['Płeć'] == 'K'].copy() if 'Płeć' in filtered_df.columns else pd.DataFrame()
+    # Mężczyźni + nieznana płeć
+    male_and_unknown_df = filtered_df[filtered_df['Płeć'].isin(['M', 'Nieznana'])].copy() if 'Płeć' in filtered_df.columns else filtered_df.copy()
+    
+    # Jeśli nie ma kolumny płci, użyj starego podziału
+    if 'Płeć' not in filtered_df.columns:
+        half = len(filtered_df) // 2
+        female_df = filtered_df.iloc[:half]
+        male_and_unknown_df = filtered_df.iloc[half:]
     
     # Przygotuj dane do tabel
     def prepare_table_data(df_part):
@@ -337,26 +370,32 @@ if df is not None and not df.empty:
     }
     
     with col1:
-        if not left_df.empty:
-            table_left = prepare_table_data(left_df)
+        st.markdown("### 👩 Karolina Moderuje")
+        if not female_df.empty:
+            table_left = prepare_table_data(female_df)
             st.dataframe(
                 table_left,
                 use_container_width=True,
                 hide_index=True,
                 column_config=column_config,
-                height=min(len(table_left) * 35 + 50, 600)  # Normalna wysokość
+                height=min(len(table_left) * 35 + 50, 600)
             )
+        else:
+            st.info("Brak uczestniczek w tej grupie")
     
     with col2:
-        if not right_df.empty:
-            table_right = prepare_table_data(right_df)
+        st.markdown("### 👨 Marcin Moderuje")
+        if not male_and_unknown_df.empty:
+            table_right = prepare_table_data(male_and_unknown_df)
             st.dataframe(
                 table_right,
                 use_container_width=True,
                 hide_index=True,
                 column_config=column_config,
-                height=min(len(table_right) * 35 + 50, 600)  # Normalna wysokość
+                height=min(len(table_right) * 35 + 50, 600)
             )
+        else:
+            st.info("Brak uczestników w tej grupie")
     
     # Top 5 najpilniejszych
     critical_df = filtered_df[filtered_df['Priority'].isin(['🔴🔴🔴', '🔴🔴'])]
@@ -393,7 +432,11 @@ if df is not None and not df.empty:
     # Tabelka szczegółowa (opcjonalnie)
     with st.expander("📋 Szczegółowa tabela"):
         # Wybierz tylko istotne kolumny z NOWYMI NAZWAMI
-        display_columns = ['Nick', 'Email', 'IleWpisów', 'KiedyOstatni', 'IleMilczy', 'BezOdpMod', 'Podsumowanie']
+        display_columns = ['Nick', 'Email', 'Imię', 'Płeć', 'IleWpisów', 'KiedyOstatni', 'IleMilczy', 'BezOdpMod', 'Podsumowanie']
+        # Dodaj stare nazwy kolumn jeśli nowe nie istnieją
+        if 'IleWpisów' not in filtered_df.columns and 'Zadania' in filtered_df.columns:
+            display_columns = ['Nick', 'Email', 'Imię', 'Płeć', 'Zadania', 'Ostatni post', 'Milczenie', 'Bez odp.', 'Status']
+        
         available_columns = [col for col in display_columns if col in filtered_df.columns]
         st.dataframe(
             filtered_df[available_columns],
