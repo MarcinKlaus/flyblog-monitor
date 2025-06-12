@@ -76,20 +76,20 @@ st.markdown("""
         font-family: 'Manrope', sans-serif !important;
     }
     
-    /* Wycentruj liczby w kolumnach 4, 5 i 7 (Liczba wpisów, Posty mod. i Bez odp.) */
-    table td:nth-child(4), table td:nth-child(5), table td:nth-child(7) {
+    /* Wycentruj liczby w kolumnach 5, 6 i 8 (Liczba wpisów, Posty mod. i Bez odp.) */
+    table td:nth-child(5), table td:nth-child(6), table td:nth-child(8) {
         text-align: center !important;
     }
     
     /* Bardziej specyficzne centrowanie dla st.table */
-    .stTable td:nth-child(4), .stTable td:nth-child(5), .stTable td:nth-child(7) {
+    .stTable td:nth-child(5), .stTable td:nth-child(6), .stTable td:nth-child(8) {
         text-align: center !important;
     }
     
     /* Jeszcze jedna próba dla różnych struktur */
-    div[data-testid="stTable"] td:nth-child(4),
     div[data-testid="stTable"] td:nth-child(5),
-    div[data-testid="stTable"] td:nth-child(7) {
+    div[data-testid="stTable"] td:nth-child(6),
+    div[data-testid="stTable"] td:nth-child(8) {
         text-align: center !important;
     }
 </style>
@@ -370,33 +370,17 @@ if df is not None and not df.empty:
                 except:
                     ostatni = ostatni_raw
             
-            # Nick i email - krótsze
+            # Nick i email - BEZ SKRACANIA, OSOBNE KOLUMNY
             nick = row.get('Nick', '')
             email = str(row.get('Email', row.get('Identyfikator', '')))
             
-            # Skracamy nick jeśli za długi
-            if len(nick) > 12:
-                nick = nick[:10] + ".."
-            
-            # Skracamy email bardziej agresywnie
-            if '@' in email:
-                parts = email.split('@')
-                if len(parts[0]) > 8:
-                    email = parts[0][:6] + ".." + "@" + parts[1][:8] + ".."
-                else:
-                    email = parts[0] + "@" + parts[1][:8] + ".."
-            elif len(email) > 15:
-                email = email[:12] + "..."
-            
-            # Łączymy w jedną linię, ale krótko
-            uczestnik = f"{nick} • {email}"
-            
-            # WAŻNE: Dodajemy wszystkie kolumny do słownika, w tym "Posty mod."!
+            # WAŻNE: Dodajemy wszystkie kolumny do słownika, w tym Nick i Email osobno!
             table_data.append({
                 'Status': row['Priority'],
-                'Uczestnik': uczestnik,
+                'Nick': nick,
+                'Email': email,
                 'Liczba wpisów': ile_wpisow,
-                'Posty mod.': moderator_posts,  # Ta linia musi być!
+                'Posty mod.': moderator_posts,
                 'Ostatni post': ostatni,
                 'Bez odp.': bez_odp,
                 'Podsumowanie': status[:35]  # Zwiększone do 35 znaków
@@ -470,4 +454,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("ReflexLab v3.7 by Insight Shot")
+st.caption("ReflexLab v3.8 by Insight Shot")
