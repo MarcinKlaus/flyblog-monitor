@@ -54,19 +54,20 @@ st.markdown("""
         font-family: 'Manrope', sans-serif !important;
     }
     
-    /* Wycentruj liczby w kolumnach 4 i 6 (Liczba wpisów i Bez odp.) */
-    table td:nth-child(4), table td:nth-child(6) {
+    /* Wycentruj liczby w kolumnach 4, 5 i 7 (Liczba wpisów, Posty mod. i Bez odp.) */
+    table td:nth-child(4), table td:nth-child(5), table td:nth-child(7) {
         text-align: center !important;
     }
     
     /* Bardziej specyficzne centrowanie dla st.table */
-    .stTable td:nth-child(4), .stTable td:nth-child(6) {
+    .stTable td:nth-child(4), .stTable td:nth-child(5), .stTable td:nth-child(7) {
         text-align: center !important;
     }
     
     /* Jeszcze jedna próba dla różnych struktur */
     div[data-testid="stTable"] td:nth-child(4),
-    div[data-testid="stTable"] td:nth-child(6) {
+    div[data-testid="stTable"] td:nth-child(5),
+    div[data-testid="stTable"] td:nth-child(7) {
         text-align: center !important;
     }
 </style>
@@ -396,10 +397,17 @@ if df is not None and not df.empty:
             # Łączymy w jedną linię, ale krótko
             uczestnik = f"{nick} • {email}"
             
+            # Pobierz dane moderatora
+            if 'Moderator' in row:
+                moderator_posts = row.get('Moderator', 0)
+            else:
+                moderator_posts = 0
+            
             table_data.append({
                 'Status': row['Priority'],
                 'Uczestnik': uczestnik,
                 'Liczba wpisów': ile_wpisow,
+                'Posty mod.': moderator_posts,
                 'Ostatni post': ostatni,
                 'Bez odp.': bez_odp,
                 'Podsumowanie': status[:35]  # Zwiększone do 35 znaków bo mamy więcej miejsca
