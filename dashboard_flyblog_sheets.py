@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-FlyBlog Monitor - Dashboard v3.4 - FINAL
-- Podział uczestników według płci moderatorów
-- Usunięty duplikat statystyk płci
-- Osoby z "maspex" w emailu są całkowicie ukryte
+FlyBlog Monitor - Dashboard v3.5 - NAPRAWIONA KOLUMNA MODERATOR
+- Dodany debug do sprawdzenia kolumn
+- Poprawione wyświetlanie kolumny "Posty mod."
+- Zachowane wszystkie poprzednie funkcjonalności
 """
 
 import streamlit as st
@@ -122,11 +122,8 @@ def parse_silence_hours(silence_str):
 def get_priority_emoji(row):
     """Zwraca emoji priorytetu na podstawie statusu"""
     try:
-        # Sprawdzamy obie możliwe nazwy kolumn
-        if 'Podsumowanie' in row:
-            status = str(row.get('Podsumowanie', '')).upper()
-        else:
-            status = str(row.get('Status', '')).upper()
+        # Używamy kolumny 'Status' z Google Sheets
+        status = str(row.get('Status', '')).upper()
         
         if 'NIE ZALOGOWAŁ' in status or 'NIGDY NIE PISAŁ' in status or 'TRAGEDIA' in status:
             return "🔴🔴🔴"
@@ -170,6 +167,16 @@ with col_refresh:
 # Wczytaj dane
 df = load_data_from_sheets()
 
+# DEBUG - pokaż jakie kolumny widzi dashboard
+st.write("🔍 DEBUG - Kolumny w arkuszu:", list(df.columns) if df is not None else "Brak danych")
+if df is not None and not df.empty:
+    st.write("🔍 DEBUG - Pierwszy wiersz danych:", df.iloc[0].to_dict())
+    # Sprawdź czy kolumna Moderator istnieje i ma wartości
+    if 'Moderator' in df.columns:
+        st.write("🔍 DEBUG - Przykładowe wartości kolumny Moderator:", df['Moderator'].head(10).tolist())
+    else:
+        st.write("❌ DEBUG - Brak kolumny 'Moderator' w danych!")
+
 if df is not None and not df.empty:
     # Pobierz informacje z pierwszego wiersza
     try:
@@ -206,8 +213,8 @@ if df is not None and not df.empty:
     # Przygotuj dane
     df['Priority'] = df.apply(get_priority_emoji, axis=1)
     
-    # Konwertuj kolumny numeryczne - UŻYWAMY NOWYCH NAZW
-    numeric_columns = ['IleWpisów', 'BezOdpMod']
+    # Konwertuj kolumny numeryczne - UŻYWAMY PRAWIDŁOWYCH NAZW
+    numeric_columns = ['Zadania', 'Moderator', 'Bez odp.']
     for col in numeric_columns:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
@@ -258,15 +265,15 @@ if df is not None and not df.empty:
     # Zastosuj filtry
     filtered_df = df[df['Priority'].isin(status_filter)].copy()
     
-    # UŻYWAMY NOWEJ NAZWY KOLUMNY
-    if 'IleMilczy' in filtered_df.columns:
-        filtered_df['silence_hours_num'] = filtered_df['IleMilczy'].apply(parse_silence_hours)
+    # Filtruj według milczenia
+    if 'Milczenie' in filtered_df.columns:
+        filtered_df['silence_hours_num'] = filtered_df['Milczenie'].apply(parse_silence_hours)
         filtered_df = filtered_df[filtered_df['silence_hours_num'] >= silence_min]
         filtered_df = filtered_df.drop('silence_hours_num', axis=1)
     
-    # UŻYWAMY NOWEJ NAZWY KOLUMNY
-    if 'BezOdpMod' in filtered_df.columns:
-        filtered_df = filtered_df[filtered_df['BezOdpMod'] >= posts_min]
+    # Filtruj według braku odpowiedzi
+    if 'Bez odp.' in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df['Bez odp.'] >= posts_min]
     
     # Sortuj według priorytetu
     priority_order = {'🔴🔴🔴': 0, '🔴🔴': 1, '🔴': 2, '🟡': 3, '🟢': 4, '⚪': 5}
@@ -290,22 +297,13 @@ if df is not None and not df.empty:
     def prepare_table_data(df_part):
         table_data = []
         for _, row in df_part.iterrows():
-            # Sprawdzamy które nazwy kolumn istnieją
-            if 'IleWpisów' in row:
-                ile_wpisow = row.get('IleWpisów', 0)
-            else:
-                ile_wpisow = row.get('Zadania', 0)
-                
-            if 'BezOdpMod' in row:
-                bez_odp = row.get('BezOdpMod', 0)
-            else:
-                bez_odp = row.get('Bez odp.', 0)
-                
-            if 'KiedyOstatni' in row:
-                ostatni_raw = str(row.get('KiedyOstatni', '-'))
-            else:
-                ostatni_raw = str(row.get('Ostatni post', '-'))
-                
+            # Używamy prawidłowych nazw kolumn z Google Sheets
+            ile_wpisow = int(row.get('Zadania', 0))
+            moderator_posts = int(row.get('Moderator', 0))  # Ta linia jest kluczowa!
+            bez_odp = int(row.get('Bez odp.', 0))
+            ostatni_raw = str(row.get('Ostatni post', '-'))
+            status = str(row.get('Status', '-'))
+            
             # Formatuj datę ostatniego postu
             if ostatni_raw == 'Nigdy' or ostatni_raw == '-':
                 ostatni = 'Nigdy'
@@ -370,11 +368,6 @@ if df is not None and not df.empty:
                         ostatni = ostatni_raw
                 except:
                     ostatni = ostatni_raw
-                
-            if 'Podsumowanie' in row:
-                status = str(row.get('Podsumowanie', '-'))
-            else:
-                status = str(row.get('Status', '-'))
             
             # Nick i email - krótsze
             nick = row.get('Nick', '')
@@ -397,69 +390,26 @@ if df is not None and not df.empty:
             # Łączymy w jedną linię, ale krótko
             uczestnik = f"{nick} • {email}"
             
-            # Pobierz dane moderatora
-            if 'Moderator' in row:
-                moderator_posts = row.get('Moderator', 0)
-            else:
-                moderator_posts = 0
-            
+            # WAŻNE: Dodajemy wszystkie kolumny do słownika, w tym "Posty mod."!
             table_data.append({
                 'Status': row['Priority'],
                 'Uczestnik': uczestnik,
                 'Liczba wpisów': ile_wpisow,
-                'Posty mod.': moderator_posts,
+                'Posty mod.': moderator_posts,  # Ta linia musi być!
                 'Ostatni post': ostatni,
                 'Bez odp.': bez_odp,
-                'Podsumowanie': status[:35]  # Zwiększone do 35 znaków bo mamy więcej miejsca
+                'Podsumowanie': status[:35]  # Zwiększone do 35 znaków
             })
         return pd.DataFrame(table_data)
-    
-    # Konfiguracja kolumn dla obu tabel
-    column_config = {
-        "St": st.column_config.TextColumn(
-            "📊",
-            width="small",
-            help="Status priorytetu"
-        ),
-        "Uczestnik": st.column_config.TextColumn(
-            "Uczestnik",
-            width="medium",
-            help="Nick i email"
-        ),
-        "W": st.column_config.NumberColumn(
-            "Wpisów",
-            help="Liczba wpisów",
-            format="%d",
-            width="small"
-        ),
-        "Ost": st.column_config.TextColumn(
-            "Ostatni",
-            help="Data ostatniego wpisu",
-            width="small"
-        ),
-        "M": st.column_config.TextColumn(
-            "Milczy",
-            help="Godziny milczenia",
-            width="small"
-        ),
-        "B": st.column_config.NumberColumn(
-            "Bez",
-            help="Bez odpowiedzi moderatora",
-            format="%d",
-            width="small"
-        ),
-        "Status": st.column_config.TextColumn(
-            "Podsumowanie",
-            width="medium"
-        )
-    }
     
     # PIERWSZA TABELA - Karolina
     st.markdown("### 👩 Karolina Moderuje")
     st.markdown(f"*Uczestniczki: {len(left_df)}*")
     if not left_df.empty:
         table_left = prepare_table_data(left_df)
-        st.table(table_left)  # Zmiana z st.dataframe na st.table
+        # DEBUG - sprawdź czy kolumna jest w tabeli
+        st.write("🔍 DEBUG - Kolumny w tabeli Karoliny:", list(table_left.columns))
+        st.table(table_left)
     else:
         st.info("Brak uczestniczek w tej grupie")
     
@@ -471,7 +421,9 @@ if df is not None and not df.empty:
     st.markdown(f"*Uczestnicy: {len(right_df)}*")
     if not right_df.empty:
         table_right = prepare_table_data(right_df)
-        st.table(table_right)  # Zmiana z st.dataframe na st.table
+        # DEBUG - sprawdź czy kolumna jest w tabeli
+        st.write("🔍 DEBUG - Kolumny w tabeli Marcina:", list(table_right.columns))
+        st.table(table_right)
     else:
         st.info("Brak uczestników w tej grupie")
     
@@ -483,16 +435,10 @@ if df is not None and not df.empty:
         
         table_data = []
         for _, case in critical_df.head(5).iterrows():
-            # Sprawdzamy które nazwy kolumn istnieją
-            if 'Podsumowanie' in case:
-                status_text = str(case.get('Podsumowanie', ''))
-            else:
-                status_text = str(case.get('Status', ''))
-            
             table_data.append({
                 'Nick': str(case.get('Nick', 'brak'))[:15],
                 'Email': str(case.get('Email', case.get('Identyfikator', '')))[:30],
-                'Status': status_text
+                'Status': str(case.get('Status', ''))
             })
         
         if table_data:
@@ -509,12 +455,8 @@ if df is not None and not df.empty:
     
     # Tabelka szczegółowa (opcjonalnie)
     with st.expander("📋 Szczegółowa tabela"):
-        # Wybierz tylko istotne kolumny z NOWYMI NAZWAMI
-        display_columns = ['Nick', 'Email', 'Imię', 'Płeć', 'IleWpisów', 'KiedyOstatni', 'IleMilczy', 'BezOdpMod', 'Podsumowanie']
-        # Dodaj stare nazwy kolumn jeśli nowe nie istnieją
-        if 'IleWpisów' not in filtered_df.columns and 'Zadania' in filtered_df.columns:
-            display_columns = ['Nick', 'Email', 'Imię', 'Płeć', 'Zadania', 'Ostatni post', 'Milczenie', 'Bez odp.', 'Status']
-        
+        # Wybierz tylko istotne kolumny - UŻYWAMY PRAWIDŁOWYCH NAZW
+        display_columns = ['Nick', 'Email', 'Imię', 'Płeć', 'Zadania', 'Ostatni post', 'Milczenie', 'Bez odp.', 'Status']
         available_columns = [col for col in display_columns if col in filtered_df.columns]
         st.dataframe(
             filtered_df[available_columns],
@@ -531,4 +473,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("ReflexLab v3.4 by Insight Shot")
+st.caption("ReflexLab v3.5 by Insight Shot")
