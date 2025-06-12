@@ -92,6 +92,20 @@ st.markdown("""
     div[data-testid="stTable"] td:nth-child(8) {
         text-align: center !important;
     }
+    
+    /* Ukryj pierwszą kolumnę (numerację) w st.table */
+    [data-testid="stTable"] td:first-child,
+    [data-testid="stTable"] th:first-child {
+        display: none !important;
+    }
+    
+    /* Dodatkowe selektory dla pewności */
+    .stTable td:first-child,
+    .stTable th:first-child,
+    div[data-testid="stTable"] tbody tr td:first-child,
+    div[data-testid="stTable"] thead tr th:first-child {
+        display: none !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
