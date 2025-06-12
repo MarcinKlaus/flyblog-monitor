@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-FlyBlog Monitor - Dashboard v3.5 - NAPRAWIONA KOLUMNA MODERATOR
-- Dodany debug do sprawdzenia kolumn
-- Poprawione wyświetlanie kolumny "Posty mod."
-- Zachowane wszystkie poprzednie funkcjonalności
+FlyBlog Monitor - Dashboard v3.6 - FINAL BEZ DEBUGÓW
+- Kolumna "Posty mod." działa poprawnie
+- Usunięte wszystkie komunikaty debug
+- Zachowane wszystkie funkcjonalności
 """
 
 import streamlit as st
@@ -82,26 +82,14 @@ def load_data_from_sheets():
         df = pd.read_csv(url, header=2)
         df.columns = df.columns.str.strip()
         
-        # Debug - wypisz nazwy kolumn
-        print(f"Kolumny w DataFrame: {list(df.columns)}")
-        
         # FILTRUJ OSOBY Z MASPEX W EMAILU
         if 'Email' in df.columns:
-            # Debug - pokaż przykładowe emaile
-            print(f"Przykładowe emaile: {df['Email'].head(10).tolist()}")
-            
             # Sprawdź ile jest maspex PRZED filtrowaniem
             maspex_mask = df['Email'].astype(str).str.lower().str.contains('maspex', na=False)
             maspex_count = maspex_mask.sum()
-            print(f"Znaleziono {maspex_count} osób z maspex w emailu")
-            
-            if maspex_count > 0:
-                print(f"Emaile maspex do usunięcia: {df[maspex_mask]['Email'].tolist()}")
             
             # Filtruj - konwertuj na string i lowercase dla pewności
             df = df[~df['Email'].astype(str).str.lower().str.contains('maspex', na=False)]
-            
-            print(f"Pozostało {len(df)} wierszy po filtrowaniu")
             
         return df
     except Exception as e:
@@ -166,16 +154,6 @@ with col_refresh:
 
 # Wczytaj dane
 df = load_data_from_sheets()
-
-# DEBUG - pokaż jakie kolumny widzi dashboard
-st.write("🔍 DEBUG - Kolumny w arkuszu:", list(df.columns) if df is not None else "Brak danych")
-if df is not None and not df.empty:
-    st.write("🔍 DEBUG - Pierwszy wiersz danych:", df.iloc[0].to_dict())
-    # Sprawdź czy kolumna Moderator istnieje i ma wartości
-    if 'Moderator' in df.columns:
-        st.write("🔍 DEBUG - Przykładowe wartości kolumny Moderator:", df['Moderator'].head(10).tolist())
-    else:
-        st.write("❌ DEBUG - Brak kolumny 'Moderator' w danych!")
 
 if df is not None and not df.empty:
     # Pobierz informacje z pierwszego wiersza
@@ -407,8 +385,6 @@ if df is not None and not df.empty:
     st.markdown(f"*Uczestniczki: {len(left_df)}*")
     if not left_df.empty:
         table_left = prepare_table_data(left_df)
-        # DEBUG - sprawdź czy kolumna jest w tabeli
-        st.write("🔍 DEBUG - Kolumny w tabeli Karoliny:", list(table_left.columns))
         st.table(table_left)
     else:
         st.info("Brak uczestniczek w tej grupie")
@@ -421,8 +397,6 @@ if df is not None and not df.empty:
     st.markdown(f"*Uczestnicy: {len(right_df)}*")
     if not right_df.empty:
         table_right = prepare_table_data(right_df)
-        # DEBUG - sprawdź czy kolumna jest w tabeli
-        st.write("🔍 DEBUG - Kolumny w tabeli Marcina:", list(table_right.columns))
         st.table(table_right)
     else:
         st.info("Brak uczestników w tej grupie")
@@ -473,4 +447,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("ReflexLab v3.5 by Insight Shot")
+st.caption("ReflexLab v3.6 by Insight Shot")
