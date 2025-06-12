@@ -1,15 +1,37 @@
 #!/usr/bin/env python3
 """
-FlyBlog Monitor - Dashboard v3.6 - FINAL BEZ DEBUGÓW
+FlyBlog Monitor - Dashboard v3.7 - FINAL BEZ DEBUGÓW
 - Kolumna "Posty mod." działa poprawnie
 - Usunięte wszystkie komunikaty debug
 - Zachowane wszystkie funkcjonalności
+- Dodane wyciszenie komunikatów systemowych
 """
 
 import streamlit as st
 import pandas as pd
 from datetime import datetime
 import re
+import warnings
+import sys
+import os
+
+# Wycisz wszystkie ostrzeżenia i komunikaty
+warnings.filterwarnings('ignore')
+pd.options.mode.chained_assignment = None
+
+# Przekieruj stdout do /dev/null podczas importów
+class SuppressOutput:
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        self._original_stderr = sys.stderr
+        sys.stdout = open(os.devnull, 'w')
+        sys.stderr = open(os.devnull, 'w')
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stderr.close()
+        sys.stdout = self._original_stdout
+        sys.stderr = self._original_stderr
 
 # Konfiguracja strony
 st.set_page_config(
@@ -77,24 +99,25 @@ st.markdown("""
 @st.cache_data(ttl=60)
 def load_data_from_sheets():
     """Wczytuje dane z publicznego arkusza Google Sheets"""
-    try:
-        url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=csv"
-        df = pd.read_csv(url, header=2)
-        df.columns = df.columns.str.strip()
-        
-        # FILTRUJ OSOBY Z MASPEX W EMAILU
-        if 'Email' in df.columns:
-            # Sprawdź ile jest maspex PRZED filtrowaniem
-            maspex_mask = df['Email'].astype(str).str.lower().str.contains('maspex', na=False)
-            maspex_count = maspex_mask.sum()
+    with SuppressOutput():  # Wycisz wszystkie komunikaty podczas wczytywania
+        try:
+            url = f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEETS_ID}/export?format=csv"
+            df = pd.read_csv(url, header=2)
+            df.columns = df.columns.str.strip()
             
-            # Filtruj - konwertuj na string i lowercase dla pewności
-            df = df[~df['Email'].astype(str).str.lower().str.contains('maspex', na=False)]
-            
-        return df
-    except Exception as e:
-        st.error(f"Błąd wczytywania danych: {str(e)}")
-        return None
+            # FILTRUJ OSOBY Z MASPEX W EMAILU
+            if 'Email' in df.columns:
+                # Sprawdź ile jest maspex PRZED filtrowaniem
+                maspex_mask = df['Email'].astype(str).str.lower().str.contains('maspex', na=False)
+                maspex_count = maspex_mask.sum()
+                
+                # Filtruj - konwertuj na string i lowercase dla pewności
+                df = df[~df['Email'].astype(str).str.lower().str.contains('maspex', na=False)]
+                
+            return df
+        except Exception as e:
+            st.error(f"Błąd wczytywania danych: {str(e)}")
+            return None
 
 # Funkcja do parsowania czasu milczenia
 def parse_silence_hours(silence_str):
@@ -447,4 +470,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("ReflexLab v3.6 by Insight Shot")
+st.caption("ReflexLab v3.7 by Insight Shot")
